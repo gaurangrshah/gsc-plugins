@@ -213,21 +213,12 @@ Should this become a reusable template?
 
 ### Why a Claude Code Plugin?
 
-**Background:** This started as a standalone Next.js app using local LLMs (Ollama with Llama 3.1 and CodeLlama). After extensive experimentation, we discovered:
-
-1. **Llama 3.1** couldn't reliably produce valid JSON (~40% success rate)
-2. **CodeLlama** copied few-shot examples verbatim instead of adapting to requests
-3. Models ignored explicit instructions ("NEVER do X" → does X anyway)
-
-**The Pivot:** Rather than fight model limitations, we pivoted to Claude Code:
-- Uses your Max subscription ($200/mo) at no extra cost
-- Claude follows instructions reliably
-- No JSON parsing failures
-- Proper code generation quality
+**Background:** This started as a standalone Next.js app using local LLMs (Ollama with Llama 3.1 and CodeLlama). After extensive experimentation, we pivoted to a claude code plugin (we were already paying for the subscription).
 
 ### Privacy-First Approach
 
-**Problem:** Generating websites often requires contact information, but we don't want to:
+**Problem:** Generating websites often requires contact information, but had industry specific considerations:
+Don't want to: 
 - Ask users for personal information
 - Store PII in prompts or outputs
 - Risk exposing real contact details
@@ -238,7 +229,7 @@ Should this become a reusable template?
 - **Email:** "contact@{business-slug}.example.com"
 - **Social:** Uses "#" as placeholder URLs
 
-The user adds real data locally after generation.
+The user adds real data locally after generation. Possible future consideration for a --pii-safe flag and allow the normal Q&A to get company details if they exist.
 
 ### Tech Stack Selection
 
