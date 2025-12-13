@@ -1,0 +1,50 @@
+{
+  "name": "taskflow",
+  "version": "1.0.0",
+  "description": "AI-powered task management system. Transform PRDs into structured, dependency-aware tasks with human-in-the-loop checkpoints.",
+  "author": {
+    "name": "gs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "tasks",
+    "project-management",
+    "prd",
+    "workflow",
+    "productivity",
+    "checkpoints",
+    "dependencies"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "configuration": {
+    "TASKFLOW_INDEX_PATH": {
+      "description": "Path to central task index file",
+      "default": "",
+      "required": false
+    },
+    "TASKFLOW_DEFAULT_TAG": {
+      "description": "Default tag name for new projects",
+      "default": "master",
+      "required": false
+    },
+    "TASKFLOW_SYNC_TODOWRITE": {
+      "description": "Sync active tasks to TodoWrite",
+      "default": "true",
+      "required": false
+    }
+  },
+  "commands": [
+    "task",
+    "task-init",
+    "task-list",
+    "task-next",
+    "task-parse",
+    "task-show",
+    "task-status",
+    "task-tag",
+    "task-expand"
+  ]
+}

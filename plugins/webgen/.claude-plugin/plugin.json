@@ -1,0 +1,54 @@
+{
+  "name": "webgen",
+  "version": "1.4.0",
+  "description": "Generate production-ready websites from natural language descriptions with orchestrated quality control, competitive research, and comprehensive documentation",
+  "author": {
+    "name": "gs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "website",
+    "generator",
+    "react",
+    "nextjs",
+    "astro",
+    "vite",
+    "tailwind",
+    "scaffold",
+    "orchestrated",
+    "code-review",
+    "accessibility",
+    "wcag"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "configuration": {
+    "WEBGEN_OUTPUT_DIR": {
+      "description": "Base directory for generated projects",
+      "default": "./webgen-projects",
+      "required": false
+    },
+    "WEBGEN_DB_PATH": {
+      "description": "SQLite database path for cross-session learning (empty = disabled)",
+      "default": "",
+      "required": false
+    }
+  },
+  "agents": [
+    "webgen",
+    "webgen-orchestrator",
+    "webgen-code-reviewer"
+  ],
+  "commands": [
+    "webgen"
+  ],
+  "skills": [
+    "design-system",
+    "project-scaffold"
+  ]
+}

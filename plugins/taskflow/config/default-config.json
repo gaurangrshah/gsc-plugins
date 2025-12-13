@@ -1,0 +1,18 @@
+{
+  "version": "1.1",
+  "environments": {
+    "example-host": {
+      "hostname": "your-hostname",
+      "workspacePath": "/path/to/workspace",
+      "indexPath": "/path/to/workspace/.task-index.json"
+    }
+  },
+  "defaults": {
+    "checkpoints": ["parse", "execute", "complete"],
+    "syncTodoWrite": true,
+    "defaultPriority": "medium",
+    "defaultNumTasks": 10,
+    "defaultTag": "master",
+    "autoTagFromBranch": false
+  }
+}

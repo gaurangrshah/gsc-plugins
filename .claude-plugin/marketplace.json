@@ -1,0 +1,31 @@
+{
+  "name": "gsc-plugins",
+  "description": "Claude Code plugins for web generation, knowledge persistence, and task management",
+  "version": "1.0.0",
+  "author": {
+    "name": "gs"
+  },
+  "plugins": [
+    {
+      "name": "webgen",
+      "path": "plugins/webgen",
+      "version": "1.4.0",
+      "description": "Transform natural language descriptions into complete, production-ready web projects",
+      "keywords": ["web", "generator", "react", "nextjs", "astro", "frontend"]
+    },
+    {
+      "name": "worklog",
+      "path": "plugins/worklog",
+      "version": "1.1.0",
+      "description": "Cross-session knowledge persistence with SQLite for maintaining context across sessions",
+      "keywords": ["memory", "persistence", "sqlite", "knowledge-base", "cross-session"]
+    },
+    {
+      "name": "taskflow",
+      "path": "plugins/taskflow",
+      "version": "1.0.0",
+      "description": "AI-powered task management - transform PRDs into structured, dependency-aware tasks",
+      "keywords": ["tasks", "project-management", "prd", "workflow", "productivity"]
+    }
+  ]
+}

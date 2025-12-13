@@ -1,0 +1,53 @@
+{
+  "name": "worklog",
+  "version": "1.1.0",
+  "description": "Cross-session knowledge persistence with SQLite. Store learnings, recall context, and maintain continuity across Claude Code sessions.",
+  "author": {
+    "name": "gs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "memory",
+    "persistence",
+    "sqlite",
+    "knowledge-base",
+    "cross-session",
+    "context",
+    "learning"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "sqlite3": ">=3.0.0"
+  },
+  "configuration": {
+    "WORKLOG_DB_PATH": {
+      "description": "Path to SQLite database (local or shared)",
+      "default": "~/.claude/worklog/worklog.db",
+      "required": false
+    },
+    "WORKLOG_PROFILE": {
+      "description": "Integration level: minimal, standard, or full",
+      "default": "standard",
+      "required": false
+    },
+    "WORKLOG_MODE": {
+      "description": "Database mode: local or shared",
+      "default": "local",
+      "required": false
+    }
+  },
+  "commands": [
+    "worklog-init",
+    "worklog-connect",
+    "worklog-configure",
+    "worklog-status"
+  ],
+  "skills": [
+    "memory-store",
+    "memory-recall",
+    "memory-sync"
+  ]
+}
