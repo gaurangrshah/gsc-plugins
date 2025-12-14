@@ -49,23 +49,68 @@ export APPGEN_OUTPUT_DIR="$HOME/my-projects"
 export APPGEN_DB_PATH=""  # Leave empty for stateless mode
 ```
 
+## Standalone & Integration
+
+### Works 100% Standalone
+
+AppGen is fully self-contained. **No other plugins required.**
+
+```bash
+# This works perfectly with ONLY appgen installed:
+/appgen inventory management system
+```
+
+All 8 phases complete. All features work. No errors or warnings about missing plugins.
+
 ### Optional Integrations
 
-**TaskFlow Integration (Opt-in):**
+AppGen detects other GSC plugins and offers enhancements:
 
-If you have the [TaskFlow plugin](../taskflow/) installed, AppGen will detect it and offer optional task tracking:
+#### TaskFlow Integration (Opt-in)
+
+If [TaskFlow](../taskflow/) is installed, AppGen offers task tracking:
 
 ```
 TaskFlow detected. Track this project with tasks? (y/n)
 ```
 
+**What happens if you say "yes":**
+
+| Phase | Task Created |
+|-------|--------------|
+| Requirements | "Define app requirements" |
+| Research | "Research tech stack" |
+| Database | "Design database schema" |
+| API | "Design API endpoints" |
+| Architecture | "Define project structure" |
+| Implementation | "Implement application" |
+| Testing | "Write and run tests" |
+| Deployment | "Configure deployment" |
+
 **Benefits:**
 - Visual progress tracking through 8 phases
 - Clear dependency chains (Database → API → Implementation)
 - Resume capability if session interrupted
-- Structured completion checklist
+- Task history for future reference
 
-**No TaskFlow?** AppGen works identically without it—no errors, no degraded functionality.
+**What happens if you say "no" or TaskFlow isn't installed:**
+- AppGen proceeds with standard workflow
+- No errors, no warnings, no prompts
+- Identical functionality
+
+#### Worklog Integration (Passive)
+
+If [Worklog](../worklog/) is installed, its hooks provide background context:
+
+- **SessionStart hook**: Loads recent work context (if hook_mode is light/full/aggressive)
+- **SessionStop hook**: Prompts to store learnings (based on hook_mode setting)
+
+AppGen doesn't actively integrate with Worklog yet, but Worklog's general-purpose hooks still fire during AppGen sessions.
+
+**Future (Planned):**
+- Auto-store architecture decisions to knowledge_base
+- Query past app scaffolds for patterns
+- Track deployment configurations
 
 ## Output Location
 

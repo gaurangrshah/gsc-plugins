@@ -35,6 +35,67 @@ Ask the user to select their preferred integration level:
 - CLAUDE.md addition: ~100 lines
 - Best for: Multi-system, team/agency workflows
 
+### Step 1b: Choose Hook Behavior (Automation Level)
+
+After profile selection, ask about automatic context loading and logging:
+
+**Hook behavior controls how actively worklog integrates with your sessions.**
+
+Present options based on profile selection:
+
+---
+
+**If MINIMAL profile selected:**
+
+Recommend: REMIND (but offer OFF)
+
+> "For minimal profile, we recommend **remind** mode - you'll get gentle reminders about worklog without automatic queries. Would you like:"
+>
+> **[A] REMIND** (Recommended) - Reminders at session start/end
+> **[B] OFF** - No automatic behavior at all
+
+---
+
+**If STANDARD profile selected:**
+
+Recommend: LIGHT or FULL based on preference
+
+> "For standard profile, choose your automation level:"
+>
+> **[A] LIGHT** (Recommended) - Quick context loading
+> - Session start: Query recent work + active memories (~100ms)
+> - Session end: Prompt to log if todos were completed
+>
+> **[B] FULL** - Comprehensive context loading
+> - Session start: Load protocols, work history, issues, errors, memories (~300ms)
+> - Session end: Auto-log session summary (no prompt needed)
+>
+> **[C] REMIND** - Just reminders, no auto-queries
+
+---
+
+**If FULL profile selected:**
+
+Recommend: FULL or AGGRESSIVE based on shared vs local
+
+> "For full profile, choose your automation level:"
+>
+> **[A] FULL** (Recommended for local DB) - Comprehensive automation
+> - Session start: Load protocols, work history, issues, errors, memories
+> - Session end: Auto-log session summary
+>
+> **[B] AGGRESSIVE** (Recommended for shared DB) - Maximum automation
+> - Everything in FULL, plus:
+> - Session start: Log session start, check items flagged for this system
+> - Session end: Auto-extract learnings to knowledge_base, document errors
+> - Best for: Multi-system workflows where knowledge should compound automatically
+>
+> **[C] LIGHT** - Lighter automation if full feels too heavy
+
+---
+
+**Note:** Hook mode can be changed later with `/worklog-configure`.
+
 ### Step 2: Choose Database Location
 
 Ask the user:
@@ -102,6 +163,7 @@ Create `.claude/worklog.local.md` with YAML frontmatter:
 ```markdown
 ---
 profile: {selected_profile}
+hook_mode: {selected_hook_mode}
 db_path: {selected_path}
 mode: {local|shared}
 system_name: {hostname or user-provided}
@@ -115,8 +177,19 @@ This file stores your worklog plugin settings.
 
 ## Current Settings
 - **Profile:** {profile}
+- **Hook Mode:** {hook_mode}
 - **Database:** {db_path}
 - **Mode:** {mode}
+
+## Hook Behavior
+
+| Mode | Session Start | Session End |
+|------|---------------|-------------|
+| off | Nothing | Nothing |
+| remind | Reminder only | Suggest storing |
+| light | Recent work + memories | Prompt to log |
+| full | Full context load | Auto-log summary |
+| aggressive | Full + flagged items | Auto-extract learnings |
 
 To change settings, run `/worklog-configure`.
 ```

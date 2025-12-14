@@ -10,6 +10,56 @@ TaskFlow bridges the gap between planning and execution. It parses PRDs, generat
 
 Inspired by [claude-task-master](https://github.com/eyaltoledano/claude-task-master), adapted for multi-environment Claude Code workflows.
 
+## Standalone & Integration
+
+### Works 100% Standalone
+
+TaskFlow is fully self-contained. **No other plugins required.**
+
+```bash
+# This works perfectly with ONLY taskflow installed:
+/task-init
+/task-parse docs/PRD/my-feature.md
+/task next
+```
+
+All commands work. PRD parsing works. Task tracking works. No errors or warnings about missing plugins.
+
+### Optional Integrations
+
+TaskFlow can be detected and used by other GSC plugins:
+
+#### Used by WebGen/AppGen (Passive)
+
+When WebGen or AppGen are installed alongside TaskFlow, they detect TaskFlow and offer to track their workflows as tasks:
+
+```
+# User runs /webgen with TaskFlow installed:
+TaskFlow detected. Track this project with tasks? (y/n)
+```
+
+**TaskFlow doesn't need to do anything**—WebGen/AppGen handle the integration. TaskFlow just provides its normal task management capabilities.
+
+**Benefits when used together:**
+- WebGen/AppGen phases become trackable tasks
+- Visual progress during generation
+- Resume capability if interrupted
+- Task history persists after generation
+
+#### Worklog Integration (Passive)
+
+If [Worklog](../worklog/) is installed, its hooks provide background context:
+
+- **SessionStart hook**: Loads recent work context during task sessions
+- **SessionStop hook**: Prompts to store learnings after task completion
+
+TaskFlow doesn't actively integrate with Worklog yet, but Worklog's general-purpose hooks still fire during TaskFlow sessions.
+
+**Future (Planned):**
+- Auto-log completed tasks to worklog entries table
+- Store task templates to knowledge_base
+- Cross-session task context from memories table
+
 ## Quick Start
 
 ### 1. Install Plugin

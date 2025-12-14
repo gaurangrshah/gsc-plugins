@@ -4,10 +4,20 @@
 **Database:** ${WORKLOG_DB_PATH}
 **Profile:** full
 **Mode:** ${WORKLOG_MODE}
+**Hook Mode:** ${WORKLOG_HOOK_MODE}
 
-### Boot Sequence (Run at Task Start)
+### Automatic Behavior
 
-For non-trivial tasks, load relevant context:
+Based on your hook mode setting:
+- **full** (default): Auto-loads all context (protocols, work, issues, errors, memories); auto-logs session summaries
+- **aggressive**: Everything in full + auto-extracts learnings to knowledge_base, logs session starts
+- **light/remind**: Reduced automation (consider upgrading for full profile benefits)
+
+**The hooks handle most context loading and logging automatically.** Manual queries below are for specialized lookups.
+
+### Boot Sequence (Manual Override)
+
+For additional context beyond automatic hooks, or if hooks are disabled:
 
 ```bash
 # Protocols (always check first)

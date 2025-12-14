@@ -49,23 +49,65 @@ export WEBGEN_OUTPUT_DIR="$HOME/my-projects"
 export WEBGEN_DB_PATH=""  # Leave empty for stateless mode
 ```
 
+## Standalone & Integration
+
+### Works 100% Standalone
+
+WebGen is fully self-contained. **No other plugins required.**
+
+```bash
+# This works perfectly with ONLY webgen installed:
+/webgen restaurant landing page
+```
+
+All 5 checkpoints complete. All features work. No errors or warnings about missing plugins.
+
 ### Optional Integrations
 
-**TaskFlow Integration (Opt-in):**
+WebGen detects other GSC plugins and offers enhancements:
 
-If you have the [TaskFlow plugin](../taskflow/) installed, WebGen will detect it and offer optional task tracking:
+#### TaskFlow Integration (Opt-in)
+
+If [TaskFlow](../taskflow/) is installed, WebGen offers task tracking:
 
 ```
 TaskFlow detected. Track this project with tasks? (y/n)
 ```
 
+**What happens if you say "yes":**
+
+| Checkpoint | Task Created |
+|------------|--------------|
+| Requirements | "Define project requirements" |
+| Research | "Conduct competitive research" |
+| Architecture | "Design project architecture" |
+| Implementation | "Implement components" |
+| Final Sign-off | "Complete documentation" |
+
 **Benefits:**
 - Visual progress tracking during generation
 - Clear dependency chains (Research → Architecture → Implementation)
 - Resume capability if session interrupted
-- Structured completion checklist
+- Task history for future reference
 
-**No TaskFlow?** WebGen works identically without it—no errors, no degraded functionality.
+**What happens if you say "no" or TaskFlow isn't installed:**
+- WebGen proceeds with standard workflow
+- No errors, no warnings, no prompts
+- Identical functionality
+
+#### Worklog Integration (Passive)
+
+If [Worklog](../worklog/) is installed, its hooks provide background context:
+
+- **SessionStart hook**: Loads recent work context (if hook_mode is light/full/aggressive)
+- **SessionStop hook**: Prompts to store learnings (based on hook_mode setting)
+
+WebGen doesn't actively integrate with Worklog yet, but Worklog's general-purpose hooks still fire during WebGen sessions.
+
+**Future (Planned):**
+- Auto-store design patterns to knowledge_base
+- Query similar past projects for consistency
+- Track generation metrics
 
 ## Output Location
 

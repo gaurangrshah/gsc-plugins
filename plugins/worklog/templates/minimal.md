@@ -3,6 +3,13 @@
 
 **Database:** ${WORKLOG_DB_PATH}
 **Profile:** minimal
+**Hook Mode:** ${WORKLOG_HOOK_MODE}
+
+### Automatic Behavior
+
+Based on your hook mode setting:
+- **remind**: You'll get reminders about worklog at session start/end
+- **off**: No automatic behavior - fully manual control
 
 ### Usage
 

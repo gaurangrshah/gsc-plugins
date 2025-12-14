@@ -2,11 +2,70 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions using SQLite.
 
-**Version:** 1.1.0
+**Version:** 1.2.0
 
 ## Overview
 
 Worklog provides persistent memory for Claude Code sessions. Store learnings, recall context, track work history, and maintain continuity across sessions and systems.
+
+## Standalone & Integration
+
+### Works 100% Standalone
+
+Worklog is fully self-contained. **No other plugins required.**
+
+```bash
+# This works perfectly with ONLY worklog installed:
+/worklog-init
+# Use memory-store skill to save learnings
+# Use memory-recall skill to query context
+```
+
+All skills work. All hooks work. All commands work. No errors or warnings about missing plugins.
+
+### How Worklog Interacts with Other Plugins
+
+Worklog provides **background context** for all sessions via hooks—it doesn't need to know about other plugins specifically.
+
+#### Hooks Fire for All Sessions
+
+When you use WebGen, AppGen, TaskFlow, or any Claude Code session:
+
+| Hook | When | What Happens |
+|------|------|--------------|
+| SessionStart | Conversation begins | Loads recent context from worklog DB |
+| SessionStop | Conversation ends | Captures learnings, logs work |
+
+**The hooks don't care which plugin is active**—they provide general-purpose context and learning capture.
+
+#### Example: WebGen + Worklog
+
+```
+User: /webgen fintech landing page
+
+[SessionStart hook fires]
+→ Loads recent work context from worklog DB
+→ Agent sees: "Recent work: Implemented auth system yesterday"
+
+[WebGen runs its workflow]
+→ Generates landing page across 5 checkpoints
+
+[SessionStop hook fires]
+→ Prompts: "Session had significant activity. Store learnings?"
+→ If aggressive mode: Auto-extracts design patterns to knowledge_base
+```
+
+#### No Active Integrations Yet
+
+Currently, Worklog doesn't have special handling for WebGen/AppGen/TaskFlow:
+
+| Integration | Status | Future Plan |
+|-------------|--------|-------------|
+| WebGen → Worklog | Passive (hooks only) | Auto-store design patterns |
+| AppGen → Worklog | Passive (hooks only) | Auto-store architecture decisions |
+| TaskFlow → Worklog | Passive (hooks only) | Auto-log completed tasks |
+
+**The hooks provide value regardless**—any session benefits from context loading and learning capture.
 
 ## Quick Start (5 minutes)
 
@@ -71,30 +130,48 @@ When using a shared NAS database, each system needs its own path to the same dat
 
 ## Profiles
 
-| Profile | Tables | Boot Queries | Auto-Store | Best For |
-|---------|--------|--------------|------------|----------|
-| **Minimal** | 6 core | None | Manual | Occasional use |
-| **Standard** (default) | 6 core | Light | Prompted | Daily use |
-| **Full** | 10 (core + extended) | Aggressive | Auto | Multi-system teams |
+| Profile | Tables | Default Hook Mode | Best For |
+|---------|--------|-------------------|----------|
+| **Minimal** | 6 core | remind | Occasional use |
+| **Standard** (default) | 6 core | light | Daily use |
+| **Full** | 10 (core + extended) | full | Multi-system teams |
+
+## Hook Modes (Automation Levels)
+
+Hooks automatically load context at session start and capture learnings at session end.
+
+| Mode | Session Start | Session End | Best For |
+|------|---------------|-------------|----------|
+| **off** | Nothing | Nothing | Full manual control |
+| **remind** | Reminder only | Suggest storing | Minimal overhead |
+| **light** | Recent work + memories | Prompt to log | Balanced automation |
+| **full** | Protocols, work, issues, errors, memories | Auto-log summary | Comprehensive tracking |
+| **aggressive** | Full + log session start + flagged items | Auto-extract learnings | Power users, shared DBs |
+
+**Hook mode is independent of profile** - you can mix any profile with any hook mode.
+
+### Hook Benefits
+
+- **No more forgetting to log**: Hooks capture work automatically
+- **Context always available**: Start each session with relevant history
+- **Learning compounds**: Knowledge extracted and stored without manual effort
+- **Background operation**: Hooks run without blocking your work
 
 ### Minimal
-- Core tables only
-- Manual store/recall via skills
-- No automatic queries
+- Core tables only (6 tables)
 - ~20 lines added to CLAUDE.md
+- Default hook mode: `remind`
 
 ### Standard (Recommended)
-- Core tables
-- Boot queries for recent context
-- Prompts to store learnings
+- Core tables (6 tables)
 - ~50 lines added to CLAUDE.md
+- Default hook mode: `light`
 
 ### Full
 - All 10 tables (core + extended: projects, components, reference_library)
-- Aggressive boot queries (protocols, recent work, errors, issues)
-- Auto-store task outcomes
 - Network failure handling with retry + handoffs
 - ~100 lines added to CLAUDE.md
+- Default hook mode: `full`
 - Optional: Add domain-agency.sql for clients/competitors tables
 
 ## Commands
@@ -242,7 +319,15 @@ sqlite3 ~/.claude/worklog/worklog.db \
 
 The plugin includes a browser-based SQLite viewer for exploring your worklog data.
 
-**Location:** `worklog-viewer/index.html`
+### Location (varies by installation method)
+
+| Installation Method | Viewer Location |
+|---------------------|-----------------|
+| **Marketplace** | `~/.claude/plugins/marketplaces/gsc-plugins/worklog/worklog-viewer/index.html` |
+| **Local Plugin** | `~/.claude/plugins/local-plugins/worklog/worklog-viewer/index.html` |
+| **From Source** | `<repo>/plugins/worklog/worklog-viewer/index.html` |
+
+**Tip:** On macOS, the `~/.claude` folder is hidden. Use Finder → Go → Go to Folder (⇧⌘G) and enter the path above.
 
 ### Features
 
@@ -256,10 +341,11 @@ The plugin includes a browser-based SQLite viewer for exploring your worklog dat
 
 ### Usage
 
-1. Open `worklog-viewer/index.html` in a browser
-2. Click "Load Database" and select your `worklog.db` file
-3. Use search, tag filters, and sort controls to explore
-4. Double-click any row for full details
+1. Navigate to the viewer location based on your installation method (see table above)
+2. Open `index.html` in a browser (drag-and-drop or right-click → Open With)
+3. Click "Load Database" and select your `worklog.db` file
+4. Use search, tag filters, and sort controls to explore
+5. Double-click any row for full details
 
 ### Keyboard Shortcuts
 
@@ -279,6 +365,9 @@ worklog/
 │   ├── worklog-connect.md
 │   ├── worklog-configure.md
 │   └── worklog-status.md
+├── hooks/
+│   ├── session-start.md      # Auto-load context
+│   └── session-stop.md       # Auto-capture learnings
 ├── skills/
 │   ├── memory-store/skill.md
 │   ├── memory-recall/skill.md
@@ -318,6 +407,13 @@ chmod 775 /path/to/db/directory
 ```
 
 ## Version History
+
+### 1.2.0
+- **Hooks for Automation**: SessionStart and Stop hooks for automatic context loading and learning capture
+- **Hook Modes**: off, remind, light, full, aggressive - independent of profile selection
+- **Enhanced Init Flow**: Now prompts for hook mode during `/worklog-init`
+- **Updated Templates**: Templates now reflect hook behavior and settings
+- **Viewer Documentation**: Clarified installation-specific paths for worklog-viewer
 
 ### 1.1.0
 - **Safety Protocol**: Backup-verify-restore flow for init/connect commands

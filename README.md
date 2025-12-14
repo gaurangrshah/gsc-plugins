@@ -198,18 +198,146 @@ AI-powered task management system. Transform PRDs into structured, dependency-aw
 
 ---
 
-## Plugin Integrations
+## Plugin Architecture
 
-These plugins are designed to work together:
+### Standalone by Design
 
-| Integration | Description |
-|-------------|-------------|
-| **WebGen + TaskFlow** | Track website generation progress with tasks |
-| **AppGen + TaskFlow** | Track app development phases with tasks |
-| **WebGen + Worklog** | Persist learnings from website projects |
-| **AppGen + Worklog** | Persist learnings from app projects |
+**Every plugin works 100% independently.** Install one, two, or all four—each functions fully without the others.
 
-Integration is **optional** - each plugin works standalone.
+| Installation | Status | Notes |
+|--------------|--------|-------|
+| webgen only | ✅ Full | All 5 checkpoints work |
+| appgen only | ✅ Full | All 8 phases work |
+| taskflow only | ✅ Full | Complete task management |
+| worklog only | ✅ Full | All hooks + skills work |
+| Any combination | ✅ Full | Optional enhancements activate |
+
+### How Plugins Detect Each Other
+
+When plugins are installed together, they detect and offer integrations:
+
+```
+/webgen restaurant landing page
+
+→ WebGen checks: Is TaskFlow installed?
+→ If YES: "TaskFlow detected. Track this project with tasks? (y/n)"
+→ If NO: Proceeds silently without task prompts
+```
+
+**No errors. No warnings. No degraded functionality.**
+
+### Integration Matrix
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     GSC Plugins Integration                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────┐         ┌──────────┐                             │
+│   │  WebGen  │◄───────►│ TaskFlow │  Track generation phases    │
+│   │  v1.5.0  │ opt-in  │  v1.0.0  │  as tasks with deps         │
+│   └────┬─────┘         └────┬─────┘                             │
+│        │                    │                                    │
+│        │ (future)           │ (future)                          │
+│        │                    │                                    │
+│        ▼                    ▼                                    │
+│   ┌──────────┐         ┌──────────┐                             │
+│   │  Worklog │         │  Worklog │  Context loading via hooks  │
+│   │  v1.2.0  │         │  v1.2.0  │  Learning capture           │
+│   └──────────┘         └──────────┘                             │
+│                                                                  │
+│   ┌──────────┐         ┌──────────┐                             │
+│   │  AppGen  │◄───────►│ TaskFlow │  Track app dev phases       │
+│   │  v1.0.0  │ opt-in  │  v1.0.0  │  as tasks with deps         │
+│   └────┬─────┘         └────┬─────┘                             │
+│        │                    │                                    │
+│        │ (future)           │ (future)                          │
+│        ▼                    ▼                                    │
+│   ┌──────────┐         ┌──────────┐                             │
+│   │  Worklog │         │  Worklog │  Context loading via hooks  │
+│   │  v1.2.0  │         │  v1.2.0  │  Learning capture           │
+│   └──────────┘         └──────────┘                             │
+│                                                                  │
+│   Legend:                                                        │
+│   ◄────► = Active integration (implemented)                     │
+│   ────►  = Planned integration (future)                         │
+│   opt-in = User must accept prompt to enable                    │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Active Integrations
+
+#### WebGen ↔ TaskFlow
+
+When both installed, WebGen offers task tracking for its 5-checkpoint workflow:
+
+| Checkpoint | Task Created |
+|------------|--------------|
+| Requirements | "Define project requirements" |
+| Research | "Conduct competitive research" |
+| Architecture | "Design project architecture" |
+| Implementation | "Implement components" |
+| Final Sign-off | "Complete documentation" |
+
+**Benefits:**
+- Visual progress tracking during generation
+- Resume capability if session interrupted
+- Dependency chain enforcement
+- Task history for future reference
+
+#### AppGen ↔ TaskFlow
+
+Same integration pattern for AppGen's 8-phase workflow:
+
+| Phase | Task Created |
+|-------|--------------|
+| Requirements | "Define app requirements" |
+| Research | "Research tech stack" |
+| Database | "Design database schema" |
+| API | "Design API endpoints" |
+| Architecture | "Define project structure" |
+| Implementation | "Implement application" |
+| Testing | "Write and run tests" |
+| Deployment | "Configure deployment" |
+
+#### Worklog Hooks (All Sessions)
+
+Worklog hooks fire on **every session**, regardless of which plugins are active:
+
+| Hook | When | What |
+|------|------|------|
+| SessionStart | Conversation begins | Loads context from worklog DB |
+| SessionStop | Conversation ends | Captures learnings, logs work |
+
+**Hook behavior is controlled by your `hook_mode` setting:**
+
+| Mode | Session Start | Session End |
+|------|---------------|-------------|
+| off | Nothing | Nothing |
+| remind | Reminder only | Suggest storing |
+| light | Recent work + memories | Prompt to log |
+| full | Comprehensive context | Auto-log summary |
+| aggressive | Full + flagged items | Auto-extract learnings |
+
+### Planned Integrations (Future)
+
+| Integration | Description | Status |
+|-------------|-------------|--------|
+| WebGen → Worklog | Auto-store design patterns | Planned |
+| AppGen → Worklog | Auto-store architecture decisions | Planned |
+| TaskFlow → Worklog | Auto-log completed tasks | Planned |
+
+### Isolated Storage
+
+Each plugin uses separate storage—no conflicts possible:
+
+| Plugin | Storage Location | Format |
+|--------|------------------|--------|
+| WebGen | `{WEBGEN_OUTPUT_DIR}/` | Project folders |
+| AppGen | `{APPGEN_OUTPUT_DIR}/` | Project folders |
+| TaskFlow | `.tasks/` (per project) | JSON files |
+| Worklog | `worklog.db` (global) | SQLite database |
 
 ## Requirements
 

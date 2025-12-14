@@ -1,7 +1,7 @@
 {
   "name": "worklog",
-  "version": "1.1.0",
-  "description": "Cross-session knowledge persistence with SQLite. Store learnings, recall context, and maintain continuity across Claude Code sessions.",
+  "version": "1.2.0",
+  "description": "Cross-session knowledge persistence with SQLite. Store learnings, recall context, and maintain continuity across Claude Code sessions. Includes automatic context loading and learning capture via hooks.",
   "author": {
     "name": "gs"
   },
@@ -15,6 +15,8 @@
     "knowledge-base",
     "cross-session",
     "context",
-    "learning"
+    "learning",
+    "hooks",
+    "automation"
   ]
 }

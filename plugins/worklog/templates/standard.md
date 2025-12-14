@@ -3,10 +3,20 @@
 
 **Database:** ${WORKLOG_DB_PATH}
 **Profile:** standard
+**Hook Mode:** ${WORKLOG_HOOK_MODE}
 
-### Boot Sequence
+### Automatic Behavior
 
-At the start of non-trivial tasks, query for relevant context:
+Based on your hook mode setting:
+- **light** (default): Auto-loads recent work + memories at session start; prompts to log at end
+- **remind**: Just reminders, no auto-queries
+- **full/aggressive**: More comprehensive context loading
+
+**The hooks handle context loading automatically.** Manual queries below are for additional lookups.
+
+### Boot Sequence (Manual Override)
+
+If you need additional context beyond what hooks provide:
 
 ```bash
 # Recent work (last 24h)
