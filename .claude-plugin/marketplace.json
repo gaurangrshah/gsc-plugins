@@ -5,16 +5,23 @@
     "email": "gaurang.r.shah@gmail.com"
   },
   "metadata": {
-    "description": "Claude Code plugins for web generation, knowledge persistence, and task management",
-    "version": "1.0.0"
+    "description": "Claude Code plugins for web/app generation, knowledge persistence, and task management",
+    "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "webgen",
       "source": "./plugins/webgen",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "description": "Transform natural language descriptions into complete, production-ready web projects",
-      "keywords": ["web", "generator", "react", "nextjs", "astro", "frontend"]
+      "keywords": ["web", "generator", "react", "nextjs", "astro", "frontend", "landing-pages"]
+    },
+    {
+      "name": "appgen",
+      "source": "./plugins/appgen",
+      "version": "1.0.0",
+      "description": "Generate full-stack applications and APIs from natural language descriptions",
+      "keywords": ["app", "generator", "fullstack", "api", "backend", "database", "auth"]
     },
     {
       "name": "worklog",

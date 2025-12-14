@@ -1,0 +1,61 @@
+{
+  "name": "appgen",
+  "version": "1.0.0",
+  "description": "Generate full-stack applications and APIs from natural language descriptions with orchestrated quality control, database design, authentication, and comprehensive testing",
+  "author": {
+    "name": "gs"
+  },
+  "license": "MIT",
+  "keywords": [
+    "fullstack",
+    "application",
+    "api",
+    "rest",
+    "graphql",
+    "trpc",
+    "nextjs",
+    "database",
+    "prisma",
+    "drizzle",
+    "auth",
+    "scaffold",
+    "orchestrated",
+    "code-review",
+    "testing"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "configuration": {
+    "APPGEN_OUTPUT_DIR": {
+      "description": "Base directory for generated applications",
+      "default": "./appgen-projects",
+      "required": false
+    },
+    "APPGEN_DB_PATH": {
+      "description": "SQLite database path for cross-session learning (empty = disabled)",
+      "default": "",
+      "required": false
+    }
+  },
+  "agents": [
+    "appgen",
+    "appgen-orchestrator",
+    "appgen-code-reviewer"
+  ],
+  "commands": [
+    "appgen"
+  ],
+  "skills": [
+    "project-scaffold",
+    "database-design",
+    "api-design",
+    "auth-integration",
+    "asset-management",
+    "taskflow-integration"
+  ]
+}
