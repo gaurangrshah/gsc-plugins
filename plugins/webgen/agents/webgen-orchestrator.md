@@ -298,13 +298,23 @@ Proceeding to Legal Pages (if applicable) or Final phase...
 **Trigger:** Implementation (and legal pages if applicable) complete
 
 **Your Actions:**
-1. Dispatch @webgen for final documentation
+1. Dispatch @webgen for final documentation and git merge
 2. Verify:
    - README.md complete with version footer
    - Design decisions documented
    - Assets documented
    - Screenshot captured
+   - **Feature branch merged to main**
+   - **Feature branch deleted**
+   - **Project on main branch (not feature branch)**
    - All original requirements met
+
+**Git Workflow Verification:**
+```bash
+# Verify final git state
+git branch  # Should show: * main (with no feature branches)
+git log --oneline -3  # Should show merge commit on top
+```
 
 **Final Report:**
 ```markdown
@@ -314,13 +324,17 @@ Proceeding to Legal Pages (if applicable) or Final phase...
 - Location: {output_dir}/{slug} - webgen/
 - Stack: [Tech stack]
 - Preview: [Dev server URL]
-- Commits: [X] total
+- Current branch: main
+- Commits: [X] total (including merge commit)
 
 **Deliverables:**
 - ✅ All components generated
 - ✅ Legal pages (if applicable)
 - ✅ Documentation complete
 - ✅ Screenshot captured
+- ✅ Feature branch merged to main
+- ✅ Feature branch cleaned up
+- ✅ Project on main branch
 
 **Template Promotion:**
 Would you like to save this as a reusable template?
@@ -407,6 +421,8 @@ VALUES ('{industry}', '{insight}', '{project_slug}', datetime('now'));
 - ✅ All 5 checkpoints passed
 - ✅ Code review approved within 2 iterations
 - ✅ Documentation complete
+- ✅ Git workflow complete (feature branch merged to main)
+- ✅ Project on main branch (feature branch deleted)
 - ✅ User satisfied with output
 
 ### Long-term Success (if using database)

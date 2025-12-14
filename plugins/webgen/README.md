@@ -246,17 +246,34 @@ Default: **React + Vite + Tailwind** for most landing pages.
 ### Git Workflow (v1.4)
 
 **Feature Branch Workflow:**
-1. `git init` on scaffold
-2. Create feature branch: `feat/{descriptive-slug}`
-3. Atomic commits after each logical unit with signature:
+1. **Initialize with main branch FIRST** (Phase 3):
+   ```bash
+   git init
+   git add .gitignore README.md package.json  # Minimum viable files
+   git commit -m "chore: initial project structure"
+   git branch -M main  # Ensure on main branch
+   ```
+2. **Create feature branch for implementation:**
+   ```bash
+   git checkout -b feat/initial-implementation
+   ```
+3. **Atomic commits** after each logical unit with signature:
    ```
    feat: add hero section
 
-   Generated with webgen v1.4
+   🤖 Generated with webgen v1.4
    Agent: webgen v1.4
    ```
-4. Push regularly: `git push -u origin HEAD`
-5. CHANGELOG.md updated with each feature
+4. **Push regularly:** `git push -u origin HEAD`
+5. **Merge back to main before completion** (Phase 5):
+   ```bash
+   git checkout main
+   git merge feat/initial-implementation --no-ff -m "feat: complete {project-name}"
+   git branch -d feat/initial-implementation  # Clean up
+   ```
+6. **Final state:** Project on `main` branch with feature branch deleted
+
+**CRITICAL:** Project MUST end on `main` branch with all changes merged.
 
 **Content Projects:** Git is optional - agent asks before initializing.
 
@@ -386,8 +403,12 @@ A webgen session is successful when:
 - [ ] TodoWrite used throughout the session
 - [ ] Competitive research saved (when applicable)
 - [ ] Project created at `{WEBGEN_OUTPUT_DIR}/{slug} - webgen/`
-- [ ] Git initialized with feature branch workflow
+- [ ] Git initialized with main branch first
+- [ ] Feature branch created for implementation
 - [ ] All commits include webgen v1.4 signature
+- [ ] Feature branch merged back to main
+- [ ] Feature branch deleted after merge
+- [ ] Project on main branch (not feature branch)
 - [ ] Code includes proper documentation
 - [ ] Tests included for API/server projects
 - [ ] Accessibility baseline met (WCAG 2.1 AA)

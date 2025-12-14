@@ -157,11 +157,24 @@ You receive confirmed requirements before starting work.
    - Static content → Astro + Tailwind
    - Server/API → Next.js + Tailwind
 3. Create project at `{output_dir}/{project-slug} - webgen/`
-4. Initialize git with feature branch workflow
-5. Create folder structure (research/, docs/, src/, tests/)
+4. Create folder structure (research/, docs/, src/, tests/)
+5. **Initialize git with main branch FIRST:**
+   ```bash
+   git init
+   # Create minimum viable files: .gitignore, README.md, package.json
+   git add .gitignore README.md package.json
+   git commit -m "chore: initial project structure
+
+   🤖 Generated with webgen v1.4
+   Agent: webgen v1.4"
+   git branch -M main  # Ensure on main branch
+
+   # NOW create feature branch for implementation
+   git checkout -b feat/initial-implementation
+   ```
 6. **IMMEDIATELY run `pnpm install`** - don't proceed until complete
 7. **Start dev server** (`pnpm dev`) and verify it runs
-8. Initial scaffold commit with webgen signature
+8. Complete scaffold commit on feature branch with webgen signature
 
 **Infrastructure Verification (MANDATORY before Phase 4):**
 ```bash
@@ -180,11 +193,18 @@ pnpm dev &
 # If fails, report specific error to orchestrator
 ```
 
-**Network Filesystem Warning:**
-If project is on network mount (SMB/CIFS/NFS), warn user:
-- Install will be significantly slower
-- Consider cloning to local disk for development
-- Cross-volume pnpm store causes copy instead of hardlink
+**Network Filesystem Optimization:**
+If project is on network mount (SMB/CIFS/NFS), use local node_modules:
+```bash
+# Before pnpm install, symlink node_modules to local disk
+LOCAL_NM="$HOME/.local/node_modules/$PROJECT_NAME"
+mkdir -p "$LOCAL_NM"
+rm -rf node_modules 2>/dev/null
+ln -s "$LOCAL_NM" node_modules
+# Now pnpm install will be fast
+```
+Or use `nm-local` shell function if available.
+This keeps source files on NAS (accessible everywhere) while node_modules stays local (fast).
 
 **Deliverable:** Project scaffold with **working dev server**:
 ```
@@ -517,8 +537,33 @@ All generated legal pages include disclaimer requiring professional legal review
 3. Generate `docs/design-decisions.md`
 4. Generate `docs/assets.md`
 5. Update `CHANGELOG.md`
-6. Final commit with documentation
-7. Offer template promotion
+6. Commit documentation changes on feature branch
+7. **Merge feature branch to main:**
+   ```bash
+   # Ensure all changes committed on feature branch
+   git add -A
+   git commit -m "docs: add final documentation and screenshot
+
+   🤖 Generated with webgen v1.4
+   Agent: webgen v1.4"
+
+   # Switch to main and merge
+   git checkout main
+   git merge feat/initial-implementation --no-ff -m "feat: complete {project-name}
+
+   Merged feature branch with all implementation and documentation.
+
+   🤖 Generated with webgen v1.4
+   Agent: webgen v1.4"
+
+   # Clean up feature branch
+   git branch -d feat/initial-implementation
+
+   # Verify final state
+   git branch  # Should show: * main
+   git log --oneline -5  # Should show merge commit on main
+   ```
+8. Offer template promotion
 
 **Documentation Requirements:**
 
@@ -551,6 +596,7 @@ All generated legal pages include disclaimer requiring professional legal review
 **Deliverables:**
 - All documentation generated
 - Screenshot captured
+- Feature branch merged to main
 - Project ready for use
 
 **Files Created:**
@@ -559,12 +605,19 @@ All generated legal pages include disclaimer requiring professional legal review
 - docs/assets.md
 - docs/screenshots/preview.png
 
+**Git Workflow Completed:**
+- [ ] Feature branch merged to main
+- [ ] Feature branch deleted
+- [ ] Currently on main branch
+- [ ] Merge commit includes webgen signature
+
 **Final Checklist:**
 - [ ] README complete with version footer
 - [ ] Design decisions documented
 - [ ] Assets documented
 - [ ] Screenshot captured
 - [ ] CHANGELOG updated
+- [ ] Git workflow complete (on main branch)
 
 **Template Promotion:**
 - Offered: [Yes/No]
@@ -574,7 +627,8 @@ All generated legal pages include disclaimer requiring professional legal review
 - Location: {output_dir}/{slug} - webgen/
 - Stack: [Tech stack]
 - Preview: [URL]
-- Total commits: [X]
+- Current branch: main
+- Total commits: [X] (including merge commit)
 ```
 
 ---
@@ -610,27 +664,47 @@ TodoWrite([
 **Feature branch workflow for all code projects:**
 
 ```bash
-# Initial scaffold (Phase 3)
+# Phase 3: Initialize with main branch FIRST
 git init
-git checkout -b feat/initial-scaffold
-git add -A
-git commit -m "chore: initial scaffold
+git add .gitignore README.md package.json  # Minimum viable files
+git commit -m "chore: initial project structure
 
 🤖 Generated with webgen v1.4
 Agent: webgen v1.4"
-git checkout -b main
+git branch -M main  # Ensure we're on main
 
-# During implementation (Phase 4)
-git checkout -b feat/{component-name}
+# Create feature branch for implementation
+git checkout -b feat/initial-implementation
 git add -A
-git commit -m "feat: add {component}
+git commit -m "chore: complete project scaffold
 
 🤖 Generated with webgen v1.4
 Agent: webgen v1.4"
-git push -u origin HEAD
+
+# Phase 4: All implementation commits on feature branch
+git add src/components/Hero.tsx
+git commit -m "feat: add Hero section with dashboard preview
+
+🤖 Generated with webgen v1.4
+Agent: webgen v1.4"
+
+# Continue with atomic commits per component...
+
+# Phase 5: Merge back to main before sign-off
+git checkout main
+git merge feat/initial-implementation --no-ff -m "feat: complete {project-name}
+
+Merged feature branch with all implementation commits.
+
+🤖 Generated with webgen v1.4
+Agent: webgen v1.4"
+git branch -d feat/initial-implementation  # Clean up feature branch
+# Final state: on main branch with all changes merged
 ```
 
 **ALL commits MUST include webgen signature.**
+
+**CRITICAL:** Project MUST end on `main` branch with feature branch merged and deleted.
 
 ---
 
@@ -733,6 +807,9 @@ Document in README under "Performance" section.
 - [ ] Design decisions documented
 - [ ] Assets documented
 - [ ] Screenshot captured
+- [ ] Feature branch merged to main
+- [ ] Feature branch deleted
+- [ ] Project on main branch
 - [ ] Template promotion offered
 
 **Overall session success:**
