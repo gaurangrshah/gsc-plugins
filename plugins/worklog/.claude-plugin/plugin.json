@@ -6,6 +6,8 @@
     "name": "gs"
   },
   "license": "MIT",
+  "repository": "https://github.com/gaurangrshah/gsc-plugins",
+  "homepage": "https://github.com/gaurangrshah/gsc-plugins/tree/main/plugins/worklog",
   "keywords": [
     "memory",
     "persistence",
@@ -14,40 +16,5 @@
     "cross-session",
     "context",
     "learning"
-  ],
-  "repository": {
-    "type": "git",
-    "url": ""
-  },
-  "engines": {
-    "sqlite3": ">=3.0.0"
-  },
-  "configuration": {
-    "WORKLOG_DB_PATH": {
-      "description": "Path to SQLite database (local or shared)",
-      "default": "~/.claude/worklog/worklog.db",
-      "required": false
-    },
-    "WORKLOG_PROFILE": {
-      "description": "Integration level: minimal, standard, or full",
-      "default": "standard",
-      "required": false
-    },
-    "WORKLOG_MODE": {
-      "description": "Database mode: local or shared",
-      "default": "local",
-      "required": false
-    }
-  },
-  "commands": [
-    "worklog-init",
-    "worklog-connect",
-    "worklog-configure",
-    "worklog-status"
-  ],
-  "skills": [
-    "memory-store",
-    "memory-recall",
-    "memory-sync"
   ]
 }

@@ -6,6 +6,8 @@
     "name": "gs"
   },
   "license": "MIT",
+  "repository": "https://github.com/gaurangrshah/gsc-plugins",
+  "homepage": "https://github.com/gaurangrshah/gsc-plugins/tree/main/plugins/taskflow",
   "keywords": [
     "tasks",
     "project-management",
@@ -14,37 +16,5 @@
     "productivity",
     "checkpoints",
     "dependencies"
-  ],
-  "repository": {
-    "type": "git",
-    "url": ""
-  },
-  "configuration": {
-    "TASKFLOW_INDEX_PATH": {
-      "description": "Path to central task index file",
-      "default": "",
-      "required": false
-    },
-    "TASKFLOW_DEFAULT_TAG": {
-      "description": "Default tag name for new projects",
-      "default": "master",
-      "required": false
-    },
-    "TASKFLOW_SYNC_TODOWRITE": {
-      "description": "Sync active tasks to TodoWrite",
-      "default": "true",
-      "required": false
-    }
-  },
-  "commands": [
-    "task",
-    "task-init",
-    "task-list",
-    "task-next",
-    "task-parse",
-    "task-show",
-    "task-status",
-    "task-tag",
-    "task-expand"
   ]
 }
