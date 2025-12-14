@@ -131,24 +131,98 @@ Bypass iteration limits and ask user immediately when:
 
 ---
 
+## TaskFlow Integration (Optional)
+
+**Purpose:** Enable task tracking for WebGen projects when TaskFlow plugin is available.
+
+**Integration Type:** Non-breaking, opt-in
+
+### Detection and Enablement
+
+**At session start, detect TaskFlow:**
+```bash
+# Check if TaskFlow plugin exists
+if [ -d "$HOME/.claude/plugins/local-plugins/taskflow" ]; then
+  TASKFLOW_AVAILABLE=true
+else
+  TASKFLOW_AVAILABLE=false
+fi
+```
+
+**Store in session context:**
+```json
+{
+  "taskflow_available": true|false,
+  "taskflow_enabled": true|false
+}
+```
+
+**If user enables TaskFlow:**
+
+1. **Initialize after requirements confirmed:**
+   ```bash
+   cd {output-dir}
+   /task-init
+   ```
+
+2. **Create tasks from requirements:**
+   ```json
+   {
+     "tasks": [
+       {"id": 1, "title": "Conduct competitive research", "phase": "research", "priority": "high"},
+       {"id": 2, "title": "Scaffold project architecture", "phase": "architecture", "dependencies": [1]},
+       {"id": 3, "title": "Implement components", "phase": "implementation", "dependencies": [2]},
+       {"id": 4, "title": "Generate legal pages", "phase": "legal", "dependencies": [3]},
+       {"id": 5, "title": "Final documentation", "phase": "final", "dependencies": [4]}
+     ]
+   }
+   ```
+
+3. **Track progress at each checkpoint:**
+   - Before phase: `/task-status {id} in_progress`
+   - After phase: `/task-status {id} done`
+   - If blocked: `/task-status {id} blocked`
+
+4. **Include in final report:**
+   ```markdown
+   **Task Summary:**
+   - Total: {count} tasks
+   - Completed: {completed}
+   - Phases: Research → Architecture → Implementation → Legal → Final
+   ```
+
+**For detailed integration patterns, see `skills/taskflow-integration/skill.md`**
+
+---
+
 ## Phase Protocols
 
-### Checkpoint 1: Requirements + Asset Extraction
+### Checkpoint 1: Requirements + Asset Extraction + TaskFlow Detection
 
 **Your Actions:**
 1. Parse user's `/webgen` command for initial requirements
-2. **Detect reference assets** in user input:
+2. **Detect TaskFlow availability** (optional integration):
+   ```bash
+   # Check if TaskFlow plugin exists
+   if [ -d "$HOME/.claude/plugins/local-plugins/taskflow" ]; then
+     TASKFLOW_AVAILABLE=true
+   else
+     TASKFLOW_AVAILABLE=false
+   fi
+   ```
+3. **Detect reference assets** in user input:
    - File attachments (screenshots, designs)
    - Mentions of "screenshot at", "reference image", "design file"
    - Check `~/workspace/screenshots/` if mentioned
-3. Gather missing information:
+4. Gather missing information:
    - Project type (landing page, multi-page site, component)
    - Industry/domain
    - Design preferences (modern, minimal, bold, etc.)
    - Target audience
    - Specific features needed
-4. **Dispatch @webgen for asset extraction** if assets detected
-5. Confirm requirements AND assets with user before proceeding
+5. **Dispatch @webgen for asset extraction** if assets detected
+6. **Offer TaskFlow integration** if available (see below)
+7. Confirm requirements, assets, AND TaskFlow preference with user before proceeding
 
 **Asset Extraction Dispatch (if assets detected):**
 ```markdown
@@ -194,6 +268,16 @@ Use the asset-management skill for guidance.
 {{/if}}
 
 **Output Directory:** {WEBGEN_OUTPUT_DIR}/{project-slug} - webgen/
+
+{{#if TASKFLOW_AVAILABLE}}
+**TaskFlow Detected:**
+I detected TaskFlow is available. Would you like to track this project with tasks?
+
+- **Yes** - Initialize task tracking, break requirements into tasks, show progress
+- **No** - Continue with standard WebGen workflow
+
+What would you like to do?
+{{/if}}
 
 Please confirm these requirements to proceed, or let me know what to adjust.
 ```

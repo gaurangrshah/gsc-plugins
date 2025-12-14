@@ -49,6 +49,24 @@ export WEBGEN_OUTPUT_DIR="$HOME/my-projects"
 export WEBGEN_DB_PATH=""  # Leave empty for stateless mode
 ```
 
+### Optional Integrations
+
+**TaskFlow Integration (Opt-in):**
+
+If you have the [TaskFlow plugin](../taskflow/) installed, WebGen will detect it and offer optional task tracking:
+
+```
+TaskFlow detected. Track this project with tasks? (y/n)
+```
+
+**Benefits:**
+- Visual progress tracking during generation
+- Clear dependency chains (Research → Architecture → Implementation)
+- Resume capability if session interrupted
+- Structured completion checklist
+
+**No TaskFlow?** WebGen works identically without it—no errors, no degraded functionality.
+
 ## Output Location
 
 Projects are created at:
@@ -162,6 +180,7 @@ Should this become a reusable template?
 |---------|-------------|
 | **Asset Management** | Detects, catalogs, and propagates reference assets (screenshots, designs) throughout workflow |
 | **TodoWrite Integration** | Every session tracks progress with todos |
+| **TaskFlow Integration** | Optional task tracking when TaskFlow plugin available (non-breaking) |
 | **Competitive Research** | Saves competitor analysis to `research/` folder |
 | **Signed Commits** | All commits include `webgen v1.4` signature |
 | **Feature Branches** | Uses `feat/{slug}` workflow, atomic commits |
@@ -417,12 +436,14 @@ webgen/
 │   │   ├── skill.md             # Color tokens, component classes
 │   │   └── references/
 │   │       └── shadcn.md        # Full component examples
-│   └── project-scaffold/
-│       ├── skill.md             # Stack selection guide
-│       └── scripts/
-│           ├── setup-vite.sh    # React + Vite + Tailwind
-│           ├── setup-next.sh    # Next.js + Tailwind
-│           └── setup-astro.sh   # Astro + React + Tailwind
+│   ├── project-scaffold/
+│   │   ├── skill.md             # Stack selection guide
+│   │   └── scripts/
+│   │       ├── setup-vite.sh    # React + Vite + Tailwind
+│   │       ├── setup-next.sh    # Next.js + Tailwind
+│   │       └── setup-astro.sh   # Astro + React + Tailwind
+│   └── taskflow-integration/
+│       └── skill.md             # Optional TaskFlow task tracking
 ├── docs/
 │   ├── ARCHITECTURE.md          # Full architecture documentation
 │   ├── CHANGELOG.md             # Version history

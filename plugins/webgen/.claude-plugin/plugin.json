@@ -1,7 +1,7 @@
 {
   "name": "webgen",
-  "version": "1.4.0",
-  "description": "Generate production-ready websites from natural language descriptions with orchestrated quality control, competitive research, and comprehensive documentation",
+  "version": "1.5.0",
+  "description": "Generate production-ready websites from natural language descriptions with orchestrated quality control, competitive research, optional TaskFlow integration, and comprehensive documentation",
   "author": {
     "name": "gs"
   },
@@ -49,6 +49,8 @@
   ],
   "skills": [
     "design-system",
-    "project-scaffold"
+    "project-scaffold",
+    "asset-management",
+    "taskflow-integration"
   ]
 }

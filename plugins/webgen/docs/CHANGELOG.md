@@ -4,6 +4,25 @@ All notable changes to the WebGen plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.5.0] - 2025-12-13
+
+### Added
+- **TaskFlow Integration** - Optional task tracking when TaskFlow plugin is available
+  - Detection at Checkpoint 1 with user opt-in
+  - Automatic task creation from requirements
+  - Status synchronization at each checkpoint
+  - Task summary in final report
+  - Non-breaking design (WebGen works identically with or without TaskFlow)
+- `skills/taskflow-integration/skill.md` - Comprehensive integration guide
+- `docs/TASKFLOW-INTEGRATION.md` - User-facing integration documentation
+- TaskFlow detection in orchestrator agent
+
+### Changed
+- Checkpoint 1 now includes TaskFlow availability detection
+- Output template includes TaskFlow opt-in prompt
+- README updated with Optional Integrations section
+- Plugin structure documentation updated
+
 ## [1.4.0] - 2024-12-13
 
 ### Added
