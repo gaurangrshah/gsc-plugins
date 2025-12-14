@@ -92,16 +92,105 @@ When scaffolding, use the output directory provided by the orchestrator. If runn
 
 ---
 
-## PHASE 1: REQUIREMENTS (Orchestrator-led)
+## PHASE 1: REQUIREMENTS + ASSET EXTRACTION
 
-The orchestrator handles this phase, gathering:
+**Trigger:** Orchestrator dispatches you for requirements gathering and asset extraction.
+
+### Requirements Gathering (Orchestrator-led)
+
+The orchestrator handles requirements, gathering:
 - Project type (site, component, feature)
 - Industry/domain
 - Design preferences
 - Target audience
 - Specific requirements
 
-You receive confirmed requirements before starting work.
+### Asset Extraction (Your Responsibility)
+
+**CRITICAL:** Extract and catalog any reference assets (screenshots, mockups, designs) provided by the user.
+
+**Actions:**
+1. **Detect assets** in user prompt:
+   - File attachments in Claude Code context
+   - Screenshots mentioned in prompt
+   - References to design files
+   - Check `~/workspace/screenshots/` if user mentioned screenshots there
+
+2. **Create asset catalog** using the `asset-management` skill:
+   ```bash
+   # Create .webgen/assets/ directory structure
+   mkdir -p .webgen/assets/{screenshots,designs,references}
+   ```
+
+3. **Extract and catalog each asset:**
+   - Copy to `.webgen/assets/{type}/`
+   - Generate catalog.json with metadata
+   - Analyze asset to extract description and tags
+   - Determine which phases need this asset
+
+4. **Catalog Schema:**
+   ```json
+   {
+     "version": "1.0",
+     "created": "2024-12-13T10:00:00Z",
+     "assets": [
+       {
+         "id": "asset-1",
+         "type": "screenshot",
+         "originalName": "hero-reference.png",
+         "path": ".webgen/assets/screenshots/hero-reference.png",
+         "description": "Hero section with gradient background",
+         "source": "user-prompt",
+         "usedIn": ["architecture", "implementation"],
+         "tags": ["hero", "layout", "gradient"]
+       }
+     ]
+   }
+   ```
+
+**Asset Detection Examples:**
+
+| User Input | Asset Detection |
+|------------|-----------------|
+| "I want it to look like this: [attached image]" | Extract attachment as screenshot |
+| "Reference screenshot at ~/workspace/screenshots/ui.png" | Copy from shared location |
+| "Here's my design mockup" + PDF attachment | Extract as design file |
+
+**If No Assets Provided:**
+- Create empty catalog.json for consistency
+- Proceed with competitive research for design inspiration
+
+**Deliverable:** `.webgen/assets/catalog.json` with:
+- Asset metadata (id, type, path, description)
+- Tags for searchability
+- Phase mapping (which phases need this asset)
+
+**Report to Orchestrator:**
+```markdown
+## PHASE COMPLETE: REQUIREMENTS + ASSETS
+
+**Requirements Confirmed:**
+- [List validated requirements]
+
+**Assets Extracted:**
+- [Count] assets cataloged
+- Types: [screenshot, design, reference]
+- Locations: .webgen/assets/{type}/
+
+**Asset Summary:**
+{{#each assets}}
+- **{{id}}**: {{description}}
+  - Type: {{type}}
+  - Relevant for: {{usedIn}}
+{{/each}}
+
+**Ready for Research Phase:**
+- Requirements validated
+- Assets cataloged and accessible
+- Research can reference provided assets
+```
+
+You receive confirmed requirements AND asset catalog before starting work.
 
 ---
 
@@ -109,12 +198,36 @@ You receive confirmed requirements before starting work.
 
 **Trigger:** Orchestrator dispatches you for research phase.
 
+### Reference Assets (If Provided)
+
+**IMPORTANT:** Before conducting research, check for reference assets:
+
+```bash
+# Load asset catalog
+cat .webgen/assets/catalog.json
+```
+
+If assets exist:
+1. **Review each asset** using Read tool to understand visual references
+2. **Extract design elements** from screenshots: colors, layouts, typography
+3. **Inform research direction** - look for competitors with similar visual styles
+4. **Document asset influence** in competitive analysis
+
+**Asset-Informed Research:**
+- If user provided hero screenshot → Find competitors with similar hero layouts
+- If user provided color palette → Find sites using similar color schemes
+- If user provided full design → Focus on implementation patterns rather than design inspiration
+
+### Competitive Research
+
 **Actions:**
-1. Identify 2-3 top competitors in the industry
-2. Use WebFetch to analyze their sites
-3. Document: design patterns, messaging, features, colors, trust signals
-4. Save to `research/competitive-analysis.md`
-5. Synthesize key insights for design decisions
+1. **Review reference assets** (if provided) to understand design direction
+2. Identify 2-3 top competitors in the industry
+3. Use WebFetch to analyze their sites
+4. Document: design patterns, messaging, features, colors, trust signals
+5. **Compare with reference assets** - note similarities and differences
+6. Save to `research/competitive-analysis.md`
+7. Synthesize key insights for design decisions
 
 **Deliverable:** `research/competitive-analysis.md` with:
 - Competitor profiles (URL, features, design patterns)
@@ -150,9 +263,37 @@ You receive confirmed requirements before starting work.
 
 **CRITICAL: Fail-fast principle - verify infrastructure BEFORE code generation.**
 
+### Reference Assets Review
+
+**MANDATORY:** Before scaffolding, review reference assets to inform architecture:
+
+```bash
+# Load asset catalog
+cat .webgen/assets/catalog.json
+
+# Read each asset relevant for architecture
+# Example: Read(.webgen/assets/screenshots/hero-reference.png)
+```
+
+**Asset-Driven Architecture Decisions:**
+- **Component structure** - What components are visible in screenshots?
+- **Layout patterns** - Single-page vs multi-page? Modal patterns?
+- **Interactions** - Animations, transitions, hover states visible?
+- **Responsive needs** - Desktop-only screenshots or mobile too?
+
+**Document in Phase Report:**
+```markdown
+**Architecture Informed by Assets:**
+- asset-1 (hero-reference.png): Requires Hero component with image background overlay
+- asset-2 (features-grid.png): Requires 3-column responsive grid
+```
+
+### Scaffold Actions
+
 **Actions:**
 1. **Check for existing project** at target location - don't create duplicates
-2. Determine tech stack based on requirements:
+2. **Review reference assets** (if provided) to identify needed components
+3. Determine tech stack based on requirements:
    - No server → React + Vite + Tailwind (default)
    - Static content → Astro + Tailwind
    - Server/API → Next.js + Tailwind
@@ -271,13 +412,61 @@ Escalate to orchestrator with specific error details.
 
 **Prerequisite:** Dev server MUST be running from Phase 3. If not, go back and fix.
 
+### Reference Assets - CRITICAL FOR IMPLEMENTATION
+
+**MANDATORY:** Load and READ reference assets BEFORE generating components:
+
+```bash
+# Load asset catalog
+cat .webgen/assets/catalog.json
+
+# For EACH asset marked for "implementation":
+# 1. Read the asset file to view it
+Read(.webgen/assets/screenshots/hero-reference.png)
+
+# 2. Analyze visual details:
+#    - Colors (extract hex codes if possible)
+#    - Typography (font sizes, weights, hierarchy)
+#    - Spacing (padding, margins, gaps)
+#    - Layout (flexbox, grid, positioning)
+#    - Interactive elements (buttons, forms, animations)
+```
+
+**Asset-Driven Implementation:**
+
+| Asset Type | Implementation Actions |
+|------------|----------------------|
+| **Hero screenshot** | Extract: background image style, text overlay opacity, CTA button style, layout (centered/left/right) |
+| **Component mockup** | Match: exact spacing, colors, typography, hover states |
+| **Full page design** | Implement pixel-perfect: section order, component styles, responsive breakpoints |
+| **Color palette** | Use exact hex codes, create CSS variables, apply consistently |
+
+**CRITICAL RULE:** If a reference asset exists for a component, the implementation MUST match it closely. Don't improvise when you have a visual reference.
+
+**Documentation in Code:**
+```tsx
+/**
+ * Hero Component
+ *
+ * Implementation based on asset-1 (hero-reference.png):
+ * - Full-height background image with gradient overlay
+ * - Centered text with 60% opacity dark gradient
+ * - Primary CTA button: #4F46E5 (from reference)
+ * - Typography: 4xl heading, lg subheading
+ */
+```
+
+### Implementation Actions
+
 **Actions:**
-1. **Verify dev server is running** - if not, restart it first
-2. Generate components section by section
-3. **Check hot reload after each component** - verify no build errors
-4. Follow design system skill for styling
-5. Apply insights from competitive research
-6. Ensure WCAG 2.1 AA accessibility
+1. **Load asset catalog** and identify assets for implementation phase
+2. **Read each relevant asset** to understand visual requirements
+3. **Verify dev server is running** - if not, restart it first
+4. Generate components section by section **matching reference assets**
+5. **Check hot reload after each component** - verify no build errors
+6. Follow design system skill for styling (or override with asset styles)
+7. Apply insights from competitive research **AND reference assets**
+8. Ensure WCAG 2.1 AA accessibility
 7. **MANDATORY atomic commits** - commit IMMEDIATELY after each component:
    ```bash
    # After EACH section (not at the end!)

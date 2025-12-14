@@ -56,6 +56,19 @@ After init, you have access to:
 /worklog-connect /path/to/shared/worklog.db
 ```
 
+### System Path Reference
+
+When using a shared NAS database, each system needs its own path to the same database:
+
+| System | Shared DB Path |
+|--------|----------------|
+| atlas (Mac) | `/Volumes/dev-env/workspace/logs/worklog.db` |
+| ubuntu-mini | `/mnt/nasdevenv/workspace/logs/worklog.db` |
+
+> **Important:** On ubuntu-mini, `~/workspace/logs/` does NOT exist because `~/workspace` is mounted to a subdirectory. Always use `/mnt/nasdevenv/workspace/logs/` for the shared worklog.
+>
+> See: [WORKSPACE-ARCHITECTURE.md](/Volumes/dev-env/workspace/docs/WORKSPACE-ARCHITECTURE.md) for full path mapping.
+
 ## Profiles
 
 | Profile | Tables | Boot Queries | Auto-Store | Best For |

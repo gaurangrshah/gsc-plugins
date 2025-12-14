@@ -19,6 +19,13 @@ pnpm create next-app@latest "$PROJECT_NAME" \
 
 cd "$PROJECT_NAME"
 
+# Setup local node_modules for NAS performance
+LOCAL_NM="$HOME/.local/node_modules/$PROJECT_NAME"
+mkdir -p "$LOCAL_NM"
+rm -rf node_modules 2>/dev/null
+ln -s "$LOCAL_NM" node_modules
+echo "✓ node_modules → $LOCAL_NM"
+
 # Install additional dependencies
 pnpm add lucide-react
 

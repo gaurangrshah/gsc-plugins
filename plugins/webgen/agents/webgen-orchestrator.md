@@ -133,21 +133,47 @@ Bypass iteration limits and ask user immediately when:
 
 ## Phase Protocols
 
-### Checkpoint 1: Requirements
+### Checkpoint 1: Requirements + Asset Extraction
 
 **Your Actions:**
 1. Parse user's `/webgen` command for initial requirements
-2. Gather missing information:
+2. **Detect reference assets** in user input:
+   - File attachments (screenshots, designs)
+   - Mentions of "screenshot at", "reference image", "design file"
+   - Check `~/workspace/screenshots/` if mentioned
+3. Gather missing information:
    - Project type (landing page, multi-page site, component)
    - Industry/domain
    - Design preferences (modern, minimal, bold, etc.)
    - Target audience
    - Specific features needed
-3. Confirm requirements with user before proceeding
+4. **Dispatch @webgen for asset extraction** if assets detected
+5. Confirm requirements AND assets with user before proceeding
+
+**Asset Extraction Dispatch (if assets detected):**
+```markdown
+@webgen:
+
+**Phase:** Requirements + Asset Extraction
+
+**Detected Assets:**
+- [List detected files/references]
+
+**Actions:**
+1. Extract assets to .webgen/assets/ directory
+2. Create catalog.json with asset metadata
+3. Analyze each asset to understand:
+   - Type (screenshot, design, reference)
+   - Content (hero, features, full page, etc.)
+   - Relevant phases (architecture, implementation)
+4. Report asset summary
+
+Use the asset-management skill for guidance.
+```
 
 **Output Template:**
 ```markdown
-## CHECKPOINT 1: REQUIREMENTS
+## CHECKPOINT 1: REQUIREMENTS + ASSETS
 
 **Project:** [Name/description]
 **Type:** [Landing page / Multi-page site / Component / Dashboard]
@@ -155,6 +181,17 @@ Bypass iteration limits and ask user immediately when:
 **Design:** [Modern, minimal, bold, professional, etc.]
 **Audience:** [Target demographic]
 **Features:** [List key features]
+
+**Reference Assets:** [X] assets detected
+{{#if assets.length > 0}}
+{{#each assets}}
+- **{{id}}**: {{description}}
+  - Type: {{type}}
+  - Will inform: {{usedIn}}
+{{/each}}
+{{else}}
+- None provided - will use competitive research for design inspiration
+{{/if}}
 
 **Output Directory:** {WEBGEN_OUTPUT_DIR}/{project-slug} - webgen/
 
@@ -166,12 +203,43 @@ Please confirm these requirements to proceed, or let me know what to adjust.
 **Trigger:** User confirms requirements
 
 **Your Actions:**
-1. Dispatch @webgen to conduct competitive research
+1. Dispatch @webgen to conduct competitive research **with asset context**
 2. Review phase report when complete
 3. Validate:
    - Competitor selection appropriate for industry?
    - Insights actionable for design decisions?
    - Research depth sufficient?
+   - **Assets reviewed and incorporated** (if provided)?
+
+**Research Dispatch (with asset context):**
+```markdown
+@webgen:
+
+**Phase:** Research
+
+**Context:**
+- Industry: [industry]
+- Requirements: [summary]
+
+**Reference Assets Available:**
+{{#if assets.length > 0}}
+The following reference assets are available for this project:
+{{#each assets}}
+- **{{id}}**: {{description}}
+  - Path: {{path}}
+  - Review before research to understand desired visual style
+{{/each}}
+
+**Research Guidance:**
+- Review reference assets first to understand design direction
+- Look for competitors with similar visual approaches
+- Compare competitive patterns with provided references
+{{else}}
+No reference assets provided - focus on industry best practices.
+{{/if}}
+
+Conduct competitive research and save to research/competitive-analysis.md
+```
 
 **If Issues Found:**
 ```markdown
@@ -200,12 +268,40 @@ Proceeding to Architecture phase...
 **Trigger:** Research approved
 
 **Your Actions:**
-1. Dispatch @webgen to scaffold project
+1. Dispatch @webgen to scaffold project **with asset context**
 2. Review phase report when complete
 3. Validate:
    - Tech stack appropriate for requirements?
    - Project structure follows standards?
+   - **Architecture informed by assets** (if provided)?
    - **Infrastructure verified** (pnpm install complete, dev server running)?
+
+**Architecture Dispatch (with asset context):**
+```markdown
+@webgen:
+
+**Phase:** Architecture + Infrastructure Verification
+
+**Context:**
+- Tech requirements: [summary]
+- Output directory: {WEBGEN_OUTPUT_DIR}/{slug} - webgen/
+
+**Reference Assets Available:**
+{{#if assets.length > 0}}
+Review these assets to inform architecture decisions:
+{{#each assets where usedIn includes "architecture"}}
+- **{{id}}**: {{description}}
+  - Path: {{path}}
+  - Use to identify: required components, layout patterns, interactions
+{{/each}}
+
+**MANDATORY:** Read these assets before scaffolding to understand component structure.
+{{else}}
+No reference assets - rely on competitive research for architecture decisions.
+{{/if}}
+
+Scaffold project, verify infrastructure (pnpm install + dev server), report status.
+```
 
 **Critical:** Do NOT proceed if infrastructure verification fails.
 
@@ -235,9 +331,45 @@ Proceeding to Implementation phase...
 **Trigger:** Architecture approved
 
 **Your Actions:**
-1. Dispatch @webgen to generate components
+1. Dispatch @webgen to generate components **with asset context**
 2. When complete, dispatch @webgen-code-reviewer to validate
 3. Track iterations (max 2)
+
+**Implementation Dispatch (with asset context):**
+```markdown
+@webgen:
+
+**Phase:** Implementation
+
+**Context:**
+- Architecture approved
+- Dev server running at: [URL]
+- Tech stack: [stack]
+
+**Reference Assets - CRITICAL:**
+{{#if assets.length > 0}}
+The following reference assets MUST be used for implementation:
+{{#each assets where usedIn includes "implementation"}}
+- **{{id}}**: {{description}}
+  - Path: {{path}}
+  - **MANDATORY:** Read this asset before implementing related components
+  - Extract: colors, typography, spacing, layout patterns
+{{/each}}
+
+**Implementation Requirements:**
+1. Load asset catalog: cat .webgen/assets/catalog.json
+2. Read EACH relevant asset using Read tool
+3. Analyze visual details (colors, spacing, typography, layout)
+4. Implement components matching reference assets
+5. Document asset usage in component docstrings
+
+**CRITICAL RULE:** If a reference asset exists for a component, match it closely. Don't improvise.
+{{else}}
+No reference assets - use competitive research insights and design system.
+{{/if}}
+
+Generate components with atomic commits. Report when ready for code review.
+```
 
 **Code Review Dispatch:**
 ```markdown

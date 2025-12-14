@@ -13,6 +13,13 @@ pnpm create vite@latest "$PROJECT_NAME" --template react-ts
 
 cd "$PROJECT_NAME"
 
+# Setup local node_modules for NAS performance
+LOCAL_NM="$HOME/.local/node_modules/$PROJECT_NAME"
+mkdir -p "$LOCAL_NM"
+rm -rf node_modules 2>/dev/null
+ln -s "$LOCAL_NM" node_modules
+echo "✓ node_modules → $LOCAL_NM"
+
 # Install Tailwind and dependencies
 pnpm add -D tailwindcss postcss autoprefixer
 pnpm add lucide-react

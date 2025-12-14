@@ -18,7 +18,14 @@ If `db_path` argument provided, use it. Otherwise, ask user:
 
 ```
 Enter the path to the shared worklog database:
-(e.g., /mnt/shared/worklog.db, /Volumes/dev-env/workspace/logs/worklog.db)
+
+**System-specific paths for shared NAS:**
+| System | Path |
+|--------|------|
+| atlas (Mac) | `/Volumes/dev-env/workspace/logs/worklog.db` |
+| ubuntu-mini | `/mnt/nasdevenv/workspace/logs/worklog.db` |
+
+> Note: On ubuntu-mini, `~/workspace/logs/` does NOT exist. Use `/mnt/nasdevenv/` path.
 ```
 
 ### Step 2: Verify Database Exists
