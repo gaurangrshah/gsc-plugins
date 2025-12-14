@@ -6,48 +6,79 @@ A collection of Claude Code plugins for enhanced development workflows.
 
 | Plugin | Version | Description |
 |--------|---------|-------------|
-| [webgen](plugins/webgen/) | 1.4.0 | Natural language to production-ready websites |
+| [webgen](plugins/webgen/) | 1.5.0 | Natural language to production-ready websites and landing pages |
+| [appgen](plugins/appgen/) | 1.0.0 | Full-stack applications and APIs from natural language |
 | [worklog](plugins/worklog/) | 1.1.0 | Cross-session knowledge persistence with SQLite |
 | [taskflow](plugins/taskflow/) | 1.0.0 | AI-powered task management from PRDs |
 
 ## Installation
 
-### Add Marketplace
+> **Note:** These plugins are indexed on [claude-plugins.dev](https://claude-plugins.dev) but are NOT available in the central `npx claude-plugins` registry. Use one of the methods below to install.
+
+### Option 1: Add as Marketplace (Recommended)
+
+From within Claude Code, run these commands:
+
+**Step 1: Add the marketplace**
+```
+claude plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
+```
+
+**Step 2: Install the plugins you want**
+```
+claude plugin install webgen@gsc-plugins
+claude plugin install appgen@gsc-plugins
+claude plugin install worklog@gsc-plugins
+claude plugin install taskflow@gsc-plugins
+```
+
+### Option 2: Slash Commands (Inside Claude Code)
+
+If you're already in a Claude Code session:
 
 ```
-/plugin marketplace add gs/gsc-plugins
-```
-
-### Install Individual Plugins
-
-```
+/plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
 /plugin install webgen@gsc-plugins
-/plugin install worklog@gsc-plugins
-/plugin install taskflow@gsc-plugins
 ```
 
-### Manual Installation
+### Option 3: Manual Installation
 
-Clone and copy to your plugins directory:
+Clone and copy to your local plugins directory:
+
 ```bash
-git clone https://github.com/gs/gsc-plugins.git
+# Clone the repo
+git clone https://github.com/gaurangrshah/gsc-plugins.git
+
+# Copy desired plugins to your local-plugins directory
 cp -r gsc-plugins/plugins/webgen ~/.claude/plugins/local-plugins/
+cp -r gsc-plugins/plugins/appgen ~/.claude/plugins/local-plugins/
 cp -r gsc-plugins/plugins/worklog ~/.claude/plugins/local-plugins/
 cp -r gsc-plugins/plugins/taskflow ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to pick up the new plugins
+```
+
+### What Doesn't Work
+
+```bash
+# This will NOT work - we're not in the central npx registry
+npx claude-plugins install @gaurangrshah/gsc-plugins/webgen  # ❌
 ```
 
 ## Plugin Overview
 
 ### WebGen
 
-Transform natural language descriptions into complete, production-ready web projects.
+Transform natural language descriptions into complete, production-ready web projects (landing pages, marketing sites).
 
 **Features:**
 - 5-checkpoint orchestrated workflow
 - React, Next.js, Astro support
+- Asset management (screenshot/design references)
+- Optional TaskFlow integration
 - Built-in code review agent
 - Design system skill
-- Legal/compliance templates
+- Git feature branch workflow
 
 **Quick Start:**
 ```
@@ -57,6 +88,32 @@ Transform natural language descriptions into complete, production-ready web proj
 **Dependencies:** Node.js 18+, pnpm/npm
 
 [Full documentation →](plugins/webgen/README.md)
+
+---
+
+### AppGen
+
+Generate full-stack applications and APIs from natural language descriptions.
+
+**Features:**
+- 8-phase workflow (requirements → database → API → implementation → deployment)
+- Next.js App Router, API-only, Monorepo scaffolds
+- Database design (Prisma/Drizzle)
+- API design (REST, tRPC)
+- Auth integration (Auth.js, Clerk, Lucia)
+- Testing setup (Vitest, Playwright)
+- Deployment config (Docker, CI/CD)
+
+**Quick Start:**
+```
+/appgen inventory management system for a warehouse
+/appgen REST API for a blog with auth and comments
+/appgen SaaS dashboard for subscription management
+```
+
+**Dependencies:** Node.js 18+, pnpm/npm, PostgreSQL (optional)
+
+[Full documentation →](plugins/appgen/README.md)
 
 ---
 
@@ -92,6 +149,7 @@ AI-powered task management system. Transform PRDs into structured, dependency-aw
 - Tag-based parallel work contexts
 - Human-in-the-loop checkpoints
 - TodoWrite integration
+- Optional integration with WebGen/AppGen
 
 **Quick Start:**
 ```
@@ -104,11 +162,25 @@ AI-powered task management system. Transform PRDs into structured, dependency-aw
 
 ---
 
+## Plugin Integrations
+
+These plugins are designed to work together:
+
+| Integration | Description |
+|-------------|-------------|
+| **WebGen + TaskFlow** | Track website generation progress with tasks |
+| **AppGen + TaskFlow** | Track app development phases with tasks |
+| **WebGen + Worklog** | Persist learnings from website projects |
+| **AppGen + Worklog** | Persist learnings from app projects |
+
+Integration is **optional** - each plugin works standalone.
+
 ## Requirements
 
 | Plugin | Requirements |
 |--------|--------------|
 | webgen | Node.js 18+, pnpm 8+ (or npm/yarn) |
+| appgen | Node.js 18+, pnpm 8+, PostgreSQL (optional) |
 | worklog | SQLite 3.0+ |
 | taskflow | None (pure Claude Code) |
 
@@ -117,6 +189,7 @@ AI-powered task management system. Transform PRDs into structured, dependency-aw
 Each plugin has its own configuration. See individual plugin READMEs for details:
 
 - [webgen configuration](plugins/webgen/README.md#configuration)
+- [appgen configuration](plugins/appgen/README.md#configuration)
 - [worklog configuration](plugins/worklog/README.md#configuration)
 - [taskflow configuration](plugins/taskflow/README.md#configuration)
 
@@ -126,4 +199,4 @@ MIT
 
 ## Author
 
-gs
+[gaurangrshah](https://github.com/gaurangrshah)
