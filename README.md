@@ -65,6 +65,42 @@ cp -r gsc-plugins/plugins/taskflow ~/.claude/plugins/local-plugins/
 npx claude-plugins install @gaurangrshah/gsc-plugins/webgen  # ❌
 ```
 
+## Updating Plugins
+
+To update an already installed plugin to the latest version:
+
+### Via Marketplace (Recommended)
+
+```bash
+# Update marketplace index first
+claude plugin marketplace update gsc-plugins
+
+# Reinstall the plugin (--force overwrites existing)
+claude plugin install worklog@gsc-plugins --force
+```
+
+### Uninstall/Reinstall
+
+```bash
+claude plugin uninstall worklog@gsc-plugins
+claude plugin install worklog@gsc-plugins
+```
+
+### Manual Update
+
+If you installed manually:
+
+```bash
+# Pull latest changes
+cd ~/path/to/gsc-plugins
+git pull
+
+# Re-copy to local-plugins (overwrites existing)
+cp -r plugins/worklog ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to pick up changes
+```
+
 ## Plugin Overview
 
 ### WebGen
