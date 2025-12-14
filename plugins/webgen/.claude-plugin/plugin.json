@@ -6,6 +6,8 @@
     "name": "gs"
   },
   "license": "MIT",
+  "repository": "https://github.com/gaurangrshah/gsc-plugins",
+  "homepage": "https://github.com/gaurangrshah/gsc-plugins/tree/main/plugins/webgen",
   "keywords": [
     "website",
     "generator",
@@ -19,38 +21,5 @@
     "code-review",
     "accessibility",
     "wcag"
-  ],
-  "repository": {
-    "type": "git",
-    "url": ""
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "configuration": {
-    "WEBGEN_OUTPUT_DIR": {
-      "description": "Base directory for generated projects",
-      "default": "./webgen-projects",
-      "required": false
-    },
-    "WEBGEN_DB_PATH": {
-      "description": "SQLite database path for cross-session learning (empty = disabled)",
-      "default": "",
-      "required": false
-    }
-  },
-  "agents": [
-    "webgen",
-    "webgen-orchestrator",
-    "webgen-code-reviewer"
-  ],
-  "commands": [
-    "webgen"
-  ],
-  "skills": [
-    "design-system",
-    "project-scaffold",
-    "asset-management",
-    "taskflow-integration"
   ]
 }

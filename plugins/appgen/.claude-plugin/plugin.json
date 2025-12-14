@@ -6,56 +6,19 @@
     "name": "gs"
   },
   "license": "MIT",
+  "repository": "https://github.com/gaurangrshah/gsc-plugins",
+  "homepage": "https://github.com/gaurangrshah/gsc-plugins/tree/main/plugins/appgen",
   "keywords": [
     "fullstack",
     "application",
     "api",
     "rest",
     "graphql",
-    "trpc",
-    "nextjs",
     "database",
-    "prisma",
-    "drizzle",
     "auth",
     "scaffold",
     "orchestrated",
     "code-review",
     "testing"
-  ],
-  "repository": {
-    "type": "git",
-    "url": ""
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "configuration": {
-    "APPGEN_OUTPUT_DIR": {
-      "description": "Base directory for generated applications",
-      "default": "./appgen-projects",
-      "required": false
-    },
-    "APPGEN_DB_PATH": {
-      "description": "SQLite database path for cross-session learning (empty = disabled)",
-      "default": "",
-      "required": false
-    }
-  },
-  "agents": [
-    "appgen",
-    "appgen-orchestrator",
-    "appgen-code-reviewer"
-  ],
-  "commands": [
-    "appgen"
-  ],
-  "skills": [
-    "project-scaffold",
-    "database-design",
-    "api-design",
-    "auth-integration",
-    "asset-management",
-    "taskflow-integration"
   ]
 }
