@@ -238,6 +238,36 @@ sqlite3 ~/.claude/worklog/worklog.db \
   "SELECT resolution FROM error_patterns WHERE error_message LIKE '%ECONNREFUSED%';"
 ```
 
+## Worklog Viewer (Web UI)
+
+The plugin includes a browser-based SQLite viewer for exploring your worklog data.
+
+**Location:** `worklog-viewer/index.html`
+
+### Features
+
+- Natural language search (multi-term filtering)
+- Tag filtering (click tags to filter)
+- Dark/Light theme with persistence
+- Database caching via IndexedDB
+- Custom SQL queries (Ctrl+Enter)
+- CSV export
+- Auto table discovery
+
+### Usage
+
+1. Open `worklog-viewer/index.html` in a browser
+2. Click "Load Database" and select your `worklog.db` file
+3. Use search, tag filters, and sort controls to explore
+4. Double-click any row for full details
+
+### Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+Enter` | Run SQL query |
+| `Escape` | Close modal |
+
 ## Plugin Structure
 
 ```
@@ -262,6 +292,9 @@ worklog/
 │   └── full.md
 ├── docs/
 │   └── network-protocol.md
+├── worklog-viewer/
+│   ├── index.html
+│   └── README.md
 └── README.md
 ```
 

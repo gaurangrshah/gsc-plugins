@@ -35,7 +35,7 @@ Projects are created in a configurable location:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `APPGEN_OUTPUT_DIR` | `./appgen-projects` | Base directory for generated applications |
+| `APPGEN_OUTPUT_DIR` | `~/projects/appgen` | Base directory for generated applications |
 
 Set via environment variable or the orchestrator will use the default.
 
@@ -136,8 +136,8 @@ Creator Agent: @appgen
 Reviewer Agent: @appgen-code-reviewer
 Orchestrator: @appgen-orchestrator
 Phases: requirements → research → database → api → architecture → implementation → testing → deployment
-Output: ${APPGEN_OUTPUT_DIR:-./appgen-projects}/{project-slug} - appgen/
-Preferences: ${APPGEN_OUTPUT_DIR:-./appgen-projects}/preferences.md (optional)
+Output: ${APPGEN_OUTPUT_DIR:-~/projects/appgen}/{project-slug} - appgen/
+Preferences: ${APPGEN_OUTPUT_DIR:-~/projects/appgen}/preferences.md (optional)
 Database: ${APPGEN_DB_PATH} (optional, empty = disabled)
 Max Iterations: 2 per phase (then escalate to user)
 ```
