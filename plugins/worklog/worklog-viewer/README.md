@@ -30,9 +30,12 @@ Browser-based SQLite viewer for the worklog knowledge persistence system with op
 4. Double-click any row to view full details
 
 ### GitHub Document Browser
-1. Click "Set Token" to add your GitHub PAT (with `repo` scope for private repos)
-2. Select a branch/system from the dropdown
-3. Browse and view markdown documentation
+1. Click the **Settings** (gear icon) to configure:
+   - **GitHub Repository** - Format: `owner/repo` (e.g., `username/my-docs`)
+   - **Branches** - Comma-separated list of branches to show in dropdown
+2. Click **Token** to add your GitHub PAT (with `repo` scope for private repos)
+3. Select a branch from the dropdown
+4. Enter a document path or click **Browse** to navigate the repository
 
 ## Database Location
 
@@ -43,13 +46,26 @@ Browser-based SQLite viewer for the worklog knowledge persistence system with op
 
 ## Configuration
 
-The viewer can be configured via environment variables set during plugin install:
+All settings are configured via the **Settings** modal (gear icon) and stored in browser localStorage:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `WORKLOG_MODE` | `local` | `local` or `shared` - controls multi-system features |
-| `GITHUB_REPO` | (none) | GitHub repo for document browser (e.g., `user/repo`) |
-| `GITHUB_BRANCHES` | `main` | Comma-separated list of branches to show |
+| Setting | Storage Key | Description |
+|---------|-------------|-------------|
+| GitHub Repository | `worklog-github-repo` | Repository in `owner/repo` format |
+| Branches | `worklog-branches` | JSON array of branch names |
+| GitHub Token | `github-token` | Personal Access Token for private repos |
+| Theme | `worklog-theme` | `dark` or `light` |
+| Last Table | `worklog-last-table` | Last viewed database table |
+
+### First-Time Setup
+
+1. Open the viewer in your browser
+2. Click the **Settings** gear icon
+3. Enter your GitHub repository (e.g., `username/my-docs`)
+4. Add branches you want to access (comma-separated)
+5. Click **Save Settings**
+6. (Optional) Click **Token** to add a PAT for private repository access
+
+Settings persist across browser sessions.
 
 ## Keyboard Shortcuts
 
