@@ -301,7 +301,7 @@ Placing a plugin in `~/.claude/plugins/local-plugins/` is NOT sufficient. Plugin
 
 1. Checked plugin structure - it was correct (`.claude-plugin/plugin.json`, `commands/`, `agents/`)
 2. Compared with working plugins - structure matched
-3. Noticed other local plugins (overnight-dev, ubuntu-mini-toolkit) also had no commands - they were drafts too
+3. Noticed other local plugins (overnight-dev, system-toolkit) also had no commands - they were drafts too
 4. Found no `marketplace.json` for local-plugins directory
 5. Realized plugins need marketplace registration + installation entry
 

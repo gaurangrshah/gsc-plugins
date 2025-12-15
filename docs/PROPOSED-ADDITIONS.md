@@ -1,6 +1,6 @@
 # Proposed Additions to GSC Plugins Ecosystem
 
-Based on analysis of the internal `~/.claude` agentic system on ubuntu-mini, here are components worth packaging for the gsc-plugins ecosystem.
+Based on analysis of the internal `~/.claude` agentic system, here are components worth packaging for the gsc-plugins ecosystem.
 
 ## Executive Summary
 
@@ -78,7 +78,7 @@ The internal system has several battle-tested components that would provide valu
 
 ### 4. docs-hygiene (Medium Priority)
 
-**Source:** `~/.claude/plugins/local-plugins/ubuntu-mini-toolkit/skills/docs-manager/SKILL.md`
+**Source:** `~/.claude/plugins/local-plugins/*/skills/docs-manager/SKILL.md`
 
 **What it does:**
 - README-driven navigation system
@@ -171,7 +171,7 @@ deployment-toolkit verifies
    - Document RED/YELLOW/GREEN examples
 
 4. **docs-hygiene**
-   - Extract from ubuntu-mini-toolkit
+   - Extract from internal toolkit
    - Generalize for any project
    - Create validation tooling
 
@@ -189,7 +189,7 @@ The following components are NOT recommended for packaging:
 
 | Component | Reason |
 |-----------|--------|
-| jarvis agent | Too environment-specific (Coolify, ubuntu-mini) |
+| jarvis agent | Too environment-specific (Coolify, homelab) |
 | desktop-manager | Omakub-specific |
 | system-analyzer | Ubuntu-specific baselines |
 | dotfiles-manager | Personal workflow, not universal |
@@ -211,5 +211,5 @@ The following components are NOT recommended for packaging:
 ---
 
 **Created:** 2025-12-14
-**Author:** ubuntu-mini agent
+**Author:** Claude Code agent
 **Status:** Draft proposal
