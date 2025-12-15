@@ -84,17 +84,58 @@ Settings persist across browser sessions.
 - **localStorage** - Stores theme preference, last selected table, and GitHub token
 - **Single HTML file** - All libraries loaded from CDN
 
-## Building
+## Contributing
 
-The source viewer is in the NAS logs directory. To build and copy to plugins:
+### Source Location
+
+The source file is maintained separately from the distributed plugin:
+
+```
+Source:  /mnt/nasdevenv/workspace/logs/worklog-viewer/index.html
+Output:  plugins/worklog/worklog-viewer/index.html (minified)
+```
+
+**Important:** Always edit the source file, never the minified output.
+
+### Build Process
+
+After making changes to `index.html`:
 
 ```bash
+cd /mnt/nasdevenv/workspace/logs/worklog-viewer
 ./build.sh
 ```
 
-This minifies the HTML and copies to:
-- `/home/gs/projects/gsc-plugins/plugins/worklog/worklog-viewer/`
-- `~/.claude/plugins/local-plugins/worklog/worklog-viewer/` (if exists)
+**What the build does:**
+1. Minifies HTML, CSS, and JS using `html-minifier-terser`
+2. Prepends MIT license attribution comment
+3. Copies minified `index.html` and `README.md` to plugin directories
+
+### Build Output
+
+The build script copies to these locations:
+- `~/projects/gsc-plugins/plugins/worklog/worklog-viewer/` (for commits)
+- `~/.claude/plugins/local-plugins/worklog/worklog-viewer/` (for local testing)
+
+### Commit Workflow
+
+```bash
+# 1. Edit source
+vim /mnt/nasdevenv/workspace/logs/worklog-viewer/index.html
+
+# 2. Build
+cd /mnt/nasdevenv/workspace/logs/worklog-viewer && ./build.sh
+
+# 3. Commit
+cd ~/projects/gsc-plugins
+git add -A && git commit -m "feat(worklog-viewer): description" && git push
+```
+
+### License
+
+Design system by [@gaurangrshah](https://github.com/gaurangrshah) - MIT License.
+
+The build process preserves the license comment in the minified output.
 
 ## Related
 
