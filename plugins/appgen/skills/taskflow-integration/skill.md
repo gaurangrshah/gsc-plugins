@@ -1,12 +1,12 @@
 ---
 name: taskflow-integration
-description: Optional TaskFlow integration for WebGen projects
+description: Optional TaskFlow integration for AppGen projects
 version: 1.0.0
 ---
 
 # TaskFlow Integration Skill
 
-**Purpose:** Enable optional task management for WebGen projects when TaskFlow plugin is available.
+**Purpose:** Enable optional task management for AppGen projects when TaskFlow plugin is available.
 
 **Integration Type:** Non-breaking, opt-in
 
@@ -14,14 +14,14 @@ version: 1.0.0
 
 ## Core Principle: Optional Enhancement
 
-**This skill provides TaskFlow integration WITHOUT breaking WebGen when TaskFlow is unavailable.**
+**This skill provides TaskFlow integration WITHOUT breaking AppGen when TaskFlow is unavailable.**
 
 **Rules:**
 - ✅ Detect TaskFlow availability before offering integration
 - ✅ Gracefully degrade if TaskFlow not found
 - ✅ User can decline even if TaskFlow is available
 - ✅ NEVER error if TaskFlow missing
-- ✅ WebGen works identically with or without TaskFlow
+- ✅ AppGen works identically with or without TaskFlow
 
 ---
 
@@ -29,7 +29,7 @@ version: 1.0.0
 
 ### 1. Check TaskFlow Availability
 
-**At webgen session start**, check for TaskFlow:
+**At appgen session start**, check for TaskFlow:
 
 ```bash
 # Method 1: Check for taskflow plugin directory
@@ -64,14 +64,14 @@ fi
 I detected TaskFlow is available. Would you like to track this project with tasks?
 
 - **Yes** - Initialize task tracking, break requirements into tasks
-- **No** - Continue with standard WebGen workflow
+- **No** - Continue with standard AppGen workflow
 
 What would you like to do?
 ```
 
 **If user declines:**
 ```markdown
-Understood. Proceeding with standard WebGen workflow...
+Understood. Proceeding with standard AppGen workflow...
 ```
 
 **If user accepts:**
@@ -233,7 +233,7 @@ Starting Implementation phase...
 - Phases: Research → Architecture → Implementation → Legal → Final
 
 **Deliverables:**
-[Standard webgen deliverables...]
+[Standard appgen deliverables...]
 ```
 
 ---
@@ -254,7 +254,7 @@ Starting Implementation phase...
 
 ### Status Mapping
 
-| WebGen Phase | TaskFlow Status |
+| AppGen Phase | TaskFlow Status |
 |--------------|-----------------|
 | Not started | `pending` |
 | In progress | `in_progress` |
@@ -394,7 +394,7 @@ User: "Use TaskFlow for this project"
 # Detection fails
 Agent: "I don't see TaskFlow installed on this system.
 Would you like to:
-1. Continue with standard WebGen workflow
+1. Continue with standard AppGen workflow
 2. Install TaskFlow first (provide instructions)
 
 What would you like to do?"
@@ -410,7 +410,7 @@ if ! /task-init 2>/dev/null; then
 fi
 ```
 
-**Never crash WebGen due to TaskFlow issues.**
+**Never crash AppGen due to TaskFlow issues.**
 
 ---
 
@@ -418,11 +418,11 @@ fi
 
 ### Store Integration State
 
-**In webgen session metadata:**
+**In appgen session metadata:**
 
 ```json
 {
-  "project": "investwise - webgen",
+  "project": "investwise - appgen",
   "taskflow": {
     "available": true,
     "enabled": true,
@@ -476,7 +476,7 @@ if taskflow.enabled:
 ### Full Session with TaskFlow
 
 ```
-User: /webgen fintech landing page for InvestWise
+User: /appgen fintech landing page for InvestWise
 
 Agent: [Detects TaskFlow]
 TaskFlow detected. Track this project with tasks? (y/n)
@@ -577,8 +577,8 @@ Project complete!
 
 ✅ TaskFlow detected reliably (no false negatives)
 ✅ User can decline without breaking workflow
-✅ WebGen works identically with/without TaskFlow
-✅ Tasks accurately reflect webgen phases
+✅ AppGen works identically with/without TaskFlow
+✅ Tasks accurately reflect appgen phases
 ✅ Task statuses stay synchronized with actual progress
 ✅ Final report includes meaningful task summary
 ✅ No errors when TaskFlow unavailable

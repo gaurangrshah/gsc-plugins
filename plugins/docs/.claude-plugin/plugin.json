@@ -1,0 +1,22 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "description": "Documentation management and validation for Claude Code projects. Single source of truth philosophy with inline updates, journal reconciliation, and proactive quality assurance.",
+  "author": {
+    "name": "gs"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/gaurangrshah/gsc-plugins",
+  "homepage": "https://github.com/gaurangrshah/gsc-plugins/tree/main/plugins/docs",
+  "keywords": [
+    "documentation",
+    "docs",
+    "markdown",
+    "frontmatter",
+    "validation",
+    "quality-assurance",
+    "single-source-of-truth",
+    "changelog",
+    "journal"
+  ]
+}

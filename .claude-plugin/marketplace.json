@@ -5,8 +5,8 @@
     "email": "gaurang.r.shah@gmail.com"
   },
   "metadata": {
-    "description": "Claude Code plugins for web/app generation, knowledge persistence, and task management",
-    "version": "1.1.0"
+    "description": "Claude Code plugins for web/app generation, knowledge persistence, task management, and documentation",
+    "version": "1.2.0"
   },
   "plugins": [
     {
@@ -26,9 +26,9 @@
     {
       "name": "worklog",
       "source": "./plugins/worklog",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "description": "Cross-session knowledge persistence with SQLite for maintaining context across sessions",
-      "keywords": ["memory", "persistence", "sqlite", "knowledge-base", "cross-session"]
+      "keywords": ["memory", "persistence", "sqlite", "knowledge-base", "cross-session", "hooks", "automation"]
     },
     {
       "name": "taskflow",
@@ -36,6 +36,13 @@
       "version": "1.0.0",
       "description": "AI-powered task management - transform PRDs into structured, dependency-aware tasks",
       "keywords": ["tasks", "project-management", "prd", "workflow", "productivity"]
+    },
+    {
+      "name": "docs",
+      "source": "./plugins/docs",
+      "version": "1.0.0",
+      "description": "Documentation management and validation with single source of truth philosophy",
+      "keywords": ["documentation", "markdown", "frontmatter", "validation", "quality-assurance", "journal"]
     }
   ]
 }

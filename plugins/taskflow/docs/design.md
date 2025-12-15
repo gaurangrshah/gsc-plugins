@@ -86,15 +86,15 @@ TaskFlow transforms Product Requirements Documents (PRDs) into structured, depen
 {
   "version": "1.1",
   "environments": {
-    "atlas": {
-      "hostname": "atlas",
-      "workspacePath": "/home/gs/workspace",
-      "indexPath": "/home/gs/workspace/.task-index.json"
+    "primary": {
+      "hostname": "your-system-name",
+      "workspacePath": "/home/user/workspace",
+      "indexPath": "/home/user/workspace/.task-index.json"
     },
-    "dev-vm": {
-      "hostname": "dev-vm",
-      "workspacePath": "/home/gs/projects",
-      "indexPath": "/home/gs/projects/.task-index.json"
+    "secondary": {
+      "hostname": "other-system",
+      "workspacePath": "/home/user/projects",
+      "indexPath": "/home/user/projects/.task-index.json"
     }
   },
   "defaults": {

@@ -154,8 +154,8 @@ system:{system_name},agent:{agent_name},topic:{topic1},topic:{topic2}
 ```
 
 Examples:
-- `system:ubuntu-mini,agent:jarvis,topic:docker,topic:networking`
-- `system:shared,agent:alfred,type:protocol,topic:sqlite`
+- `system:my-laptop,agent:claude,topic:docker,topic:networking`
+- `system:shared,agent:claude,type:protocol,topic:sqlite`
 
 ## Network Retry Logic
 
@@ -191,9 +191,9 @@ useEffect(() => {
 \`\`\`
 
 **Notes:** Also applies to event listeners, subscriptions',
-'system:shared,agent:jarvis,topic:react,topic:hooks,type:pattern',
-'jarvis',
-'ubuntu-mini'
+'system:shared,agent:claude,topic:react,topic:hooks,type:pattern',
+'claude',
+'$(hostname)'
 );"
 ```
 
@@ -202,11 +202,11 @@ useEffect(() => {
 ```bash
 sqlite3 ~/.claude/worklog/worklog.db "INSERT INTO entries
 (agent, task_type, title, details, outcome, tags) VALUES (
-'jarvis',
+'claude',
 'development',
 'Implemented worklog plugin',
 'Created plugin structure, commands, skills, and templates',
 'Plugin ready for testing',
-'system:ubuntu-mini,agent:jarvis,project:worklog-plugin'
+'system:$(hostname),agent:claude,project:worklog-plugin'
 );"
 ```

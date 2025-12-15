@@ -1,3 +1,8 @@
+---
+name: design-system
+description: Shadcn-inspired design system with CSS variables, component classes, and responsive patterns for generated websites
+---
+
 # Design System Skill
 
 **Type:** Reference Skill

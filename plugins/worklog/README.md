@@ -55,15 +55,47 @@ User: /webgen fintech landing page
 → If aggressive mode: Auto-extracts design patterns to knowledge_base
 ```
 
-#### No Active Integrations Yet
+#### Docs Plugin Integration (Bidirectional)
 
-Currently, Worklog doesn't have special handling for WebGen/AppGen/TaskFlow:
+When both worklog and docs plugins are installed, they form a **bidirectional knowledge flow**:
 
-| Integration | Status | Future Plan |
-|-------------|--------|-------------|
-| WebGen → Worklog | Passive (hooks only) | Auto-store design patterns |
-| AppGen → Worklog | Passive (hooks only) | Auto-store architecture decisions |
-| TaskFlow → Worklog | Passive (hooks only) | Auto-log completed tasks |
+```
+docs-manager                    memory-sync
+     ↓                              ↑
+Stores learnings TO worklog    Promotes FROM worklog to docs
+     ↓                              ↑
+     └──────── worklog.db ──────────┘
+```
+
+| Direction | What Happens |
+|-----------|--------------|
+| **Docs → Worklog** | docs-manager stores learnings, decisions, and work entries to worklog.db |
+| **Worklog → Docs** | memory-sync promotes valuable entries back to docs with proper frontmatter |
+
+**Configuration for docs integration:**
+
+```bash
+# Set in both plugins for full integration
+export WORKLOG_DB="/path/to/worklog.db"
+export DOCS_ROOT="~/docs"
+export KNOWLEDGE_BASE="~/.claude/knowledge"
+```
+
+When `$DOCS_ROOT` is set, memory-sync:
+- Detects docs plugin and enables enhanced mode
+- Creates files with proper YAML frontmatter
+- Validates promoted files against docs standards
+- Uses consistent type mapping (decisions → `type: decision`, etc.)
+
+#### Other Plugin Integrations
+
+| Integration | Status | Behavior |
+|-------------|--------|----------|
+| WebGen → Worklog | Passive (hooks only) | SessionStart/Stop hooks fire during generation |
+| AppGen → Worklog | Passive (hooks only) | SessionStart/Stop hooks fire during generation |
+| TaskFlow → Worklog | Passive (hooks only) | SessionStart/Stop hooks fire during task work |
+| **Docs → Worklog** | **Active** | docs-manager stores to worklog.db |
+| **Worklog → Docs** | **Active** | memory-sync promotes with frontmatter |
 
 **The hooks provide value regardless**—any session benefits from context loading and learning capture.
 
@@ -115,18 +147,17 @@ After init, you have access to:
 /worklog-connect /path/to/shared/worklog.db
 ```
 
-### System Path Reference
+### Multi-System Path Reference (Advanced)
 
-When using a shared NAS database, each system needs its own path to the same database:
+When using a shared database across multiple systems, each system needs its own mount path to the same database file. Example configurations:
 
-| System | Shared DB Path |
-|--------|----------------|
-| atlas (Mac) | `/Volumes/dev-env/workspace/logs/worklog.db` |
-| ubuntu-mini | `/mnt/nasdevenv/workspace/logs/worklog.db` |
+| Platform | Example Shared DB Path |
+|----------|------------------------|
+| macOS | `/Volumes/share-name/path/to/worklog.db` |
+| Linux | `/mnt/share-name/path/to/worklog.db` |
+| Windows | `\\server\share\path\to\worklog.db` |
 
-> **Important:** On ubuntu-mini, `~/workspace/logs/` does NOT exist because `~/workspace` is mounted to a subdirectory. Always use `/mnt/nasdevenv/workspace/logs/` for the shared worklog.
->
-> See: [WORKSPACE-ARCHITECTURE.md](/Volumes/dev-env/workspace/docs/WORKSPACE-ARCHITECTURE.md) for full path mapping.
+> **Note:** Network mount paths vary by system. Ensure each system can access the shared location before configuring.
 
 ## Profiles
 

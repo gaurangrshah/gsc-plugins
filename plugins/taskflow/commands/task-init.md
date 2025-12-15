@@ -8,7 +8,7 @@ Initialize the TaskFlow task management system in the current project directory.
 
 ## What This Command Does
 
-1. Detect current environment (atlas, dev-vm, or default)
+1. Detect current environment (system hostname or default)
 2. Create `.tasks/` directory structure with tag support
 3. Create `master` tag with empty `tasks.json`
 4. Create `state.json` to track current tag

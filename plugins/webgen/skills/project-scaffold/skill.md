@@ -1,3 +1,8 @@
+---
+name: project-scaffold
+description: Setup scripts for React+Vite, Astro, and Next.js projects with design system integration
+---
+
 # Project Scaffold Skill
 
 **Type:** Reference Skill
