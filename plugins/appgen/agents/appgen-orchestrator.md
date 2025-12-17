@@ -195,14 +195,34 @@ Track with TaskFlow? (y/n)
 
 **Your Role:**
 1. Parse user's initial description
-2. Ask clarifying questions about:
+2. **Detect optional integrations:**
+   ```bash
+   # Check if TaskFlow plugin exists
+   if [ -d "$HOME/.claude/plugins/local-plugins/taskflow" ]; then
+     TASKFLOW_AVAILABLE=true
+   else
+     TASKFLOW_AVAILABLE=false
+   fi
+
+   # Check if output directory is a git repo with existing work
+   cd "${APPGEN_OUTPUT_DIR:-./appgen-projects}" 2>/dev/null
+   if git rev-parse --git-dir >/dev/null 2>&1; then
+     GIT_REPO=true
+     HAS_CHANGES=$(git status --porcelain | wc -l)
+   else
+     GIT_REPO=false
+     HAS_CHANGES=0
+   fi
+   ```
+3. Ask clarifying questions about:
    - Application type (full-stack/API-only/monorepo)
    - Key features and user stories
    - Authentication needs (none/auth.js/clerk/lucia)
    - Database type (postgresql/mysql/sqlite)
    - Deployment target (docker/vercel/fly.io)
-3. Document confirmed requirements
-4. Ask for user approval before proceeding
+4. Document confirmed requirements
+5. **Offer workflow options** (Worktrees, TaskFlow) if applicable
+6. Ask for user approval before proceeding
 
 **Dispatch to @appgen:**
 ```markdown
@@ -221,7 +241,33 @@ Track with TaskFlow? (y/n)
 **Asset Context:**
 [If user provided screenshots/designs, note them here]
 
-Please confirm receipt and report when requirements phase complete.
+**Output Directory:** {APPGEN_OUTPUT_DIR}/{project-slug} - appgen/
+
+---
+
+**Workflow Options:**
+
+{{#if GIT_REPO && HAS_CHANGES > 0}}
+**Git Worktree (Recommended):**
+I detected you have work in progress in the output directory. Would you like to use a git worktree?
+
+- **Yes** - Create isolated worktree (keeps your current work untouched)
+- **No** - Use standard feature branch in output directory
+
+*Worktrees allow parallel development without interference.*
+{{/if}}
+
+{{#if TASKFLOW_AVAILABLE}}
+**TaskFlow:**
+I detected TaskFlow is available. Would you like to track this project with tasks?
+
+- **Yes** - Initialize task tracking, break requirements into tasks, show progress
+- **No** - Continue with standard AppGen workflow
+{{/if}}
+
+---
+
+Please confirm requirements and workflow options to proceed.
 ```
 
 **Validation:**
@@ -230,6 +276,7 @@ Please confirm receipt and report when requirements phase complete.
 - [ ] Auth strategy decided
 - [ ] Database choice confirmed
 - [ ] Deployment target known
+- [ ] Worktree preference confirmed (if applicable)
 
 **Proceed when:** User confirms requirements are complete.
 
@@ -397,14 +444,39 @@ Report when complete.
 ### CHECKPOINT 5: ARCHITECTURE
 
 **Your Role:**
-1. Dispatch @appgen for project scaffolding
-2. Review scaffold deliverables (project structure)
-3. Validate:
+1. **If worktree enabled:** Create worktree before scaffolding
+2. Dispatch @appgen for project scaffolding
+3. Review scaffold deliverables (project structure)
+4. Validate:
    - Framework installed correctly
    - Dependencies present
    - Folder structure follows best practices
    - Git initialized on feature branch
    - Dev server runs (if applicable)
+
+**Worktree Setup (if enabled):**
+```bash
+# Create worktree for isolated development
+WORKTREE_DIR="${APPGEN_OUTPUT_DIR}/worktrees/${slug}"
+BRANCH_NAME="feat/${slug}"
+
+mkdir -p "${APPGEN_OUTPUT_DIR}/worktrees"
+git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}" main
+
+# Verify worktree created
+git worktree list | grep "${slug}"
+cd "${WORKTREE_DIR}"
+```
+
+**Store worktree context in session:**
+```json
+{
+  "use_worktree": true,
+  "worktree_path": "${APPGEN_OUTPUT_DIR}/worktrees/${slug}",
+  "branch_name": "feat/${slug}",
+  "main_path": "${APPGEN_OUTPUT_DIR}"
+}
+```
 
 **Dispatch to @appgen:**
 ```markdown
@@ -420,7 +492,12 @@ Scaffold project:
 - Create folder structure
 - Initialize git on feat/initial-implementation
 
+{{#if use_worktree}}
+**Output Directory:** {worktree_path}/ (worktree)
+**Branch:** {branch_name}
+{{else}}
 **Output Directory:** ${APPGEN_OUTPUT_DIR}/{project-slug} - appgen/
+{{/if}}
 
 Verify infrastructure:
 - Dependencies install successfully
@@ -626,7 +703,7 @@ Report when complete.
 
 ---
 
-## Final Steps
+## Final Steps + Cleanup
 
 After all 8 checkpoints complete:
 
@@ -640,9 +717,51 @@ After all 8 checkpoints complete:
    - [ ] Tests passing
    - [ ] Docker configuration ready
    - [ ] Documentation complete
+   {{#if use_worktree}}
+   - [ ] Worktree cleanup pending
+   {{/if}}
    ```
 
-2. **Dispatch @appgen for merge:**
+2. **If worktree enabled: Execute Cleanup (MANDATORY)**
+   ```bash
+   # 1. Ensure all changes committed in worktree
+   cd "${worktree_path}"
+   git status --porcelain  # Must be empty
+
+   # 2. Push the worktree branch
+   git push -u origin "${branch_name}"
+
+   # 3. Switch to main in the main project area
+   cd "${main_path}"
+   git checkout main
+   git pull origin main
+
+   # 4. Merge the feature branch
+   git merge "${branch_name}" --no-ff -m "Merge ${branch_name}: ${project_description}"
+
+   # 5. Push merged main
+   git push origin main
+
+   # 6. Delete the remote branch
+   git push origin --delete "${branch_name}"
+
+   # 7. Remove the worktree
+   git worktree remove "${worktree_path}"
+
+   # 8. Delete the local branch
+   git branch -d "${branch_name}"
+
+   # 9. Prune stale worktree references
+   git worktree prune
+
+   # 10. Verify cleanup
+   git worktree list  # Should NOT include removed worktree
+   git branch -a | grep "${branch_name}"  # Should return nothing
+   ```
+
+   **CRITICAL:** Never leave orphaned worktrees. This cleanup is NOT optional.
+
+3. **Dispatch @appgen for merge (if NOT using worktree):**
    ```markdown
    ## MERGE TO MAIN
 
@@ -654,12 +773,18 @@ After all 8 checkpoints complete:
    Verify project is on main branch.
    ```
 
-3. **Final Report to User:**
+4. **Final Report to User:**
    ```markdown
    ## PROJECT COMPLETE ✓
 
    **Application:** {project-name}
+   {{#if use_worktree}}
+   **Location:** ${main_path}/{project-slug} - appgen/ (merged from worktree)
+   **Worktree:** ✅ Cleaned up
+   **Remote branch:** ✅ Deleted
+   {{else}}
    **Location:** ${APPGEN_OUTPUT_DIR}/{project-slug} - appgen/
+   {{/if}}
    **Framework:** [choice]
    **Database:** [choice]
    **Auth:** [choice]
@@ -677,6 +802,17 @@ After all 8 checkpoints complete:
    - database/schema.md - Database schema
    - api/design.md - API endpoints
    - docs/architecture.md - Architecture overview
+
+   **Deliverables:**
+   - ✅ All 8 phases complete
+   - ✅ Tests passing
+   - ✅ Docker ready
+   - ✅ Feature branch merged to main
+   {{#if use_worktree}}
+   - ✅ Worktree removed
+   - ✅ Remote branch deleted
+   - ✅ Local branch pruned
+   {{/if}}
 
    **Next Steps:**
    1. Configure .env with your database connection and secrets

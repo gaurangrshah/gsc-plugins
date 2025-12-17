@@ -98,6 +98,38 @@ TaskFlow detected. Track this project with tasks? (y/n)
 - No errors, no warnings, no prompts
 - Identical functionality
 
+#### Git Worktree Integration (Opt-in)
+
+If AppGen detects you have work in progress in the output directory (uncommitted changes in a git repo), it offers isolated development via git worktrees:
+
+```
+**Git Worktree (Recommended):**
+I detected you have work in progress in the output directory.
+Would you like to use a git worktree?
+
+- **Yes** - Create isolated worktree (keeps your current work untouched)
+- **No** - Use standard feature branch in output directory
+```
+
+**What happens if you say "yes":**
+
+| Phase | Action |
+|-------|--------|
+| Architecture (Phase 5) | Creates worktree at `worktrees/{slug}/` on branch `feat/{slug}` |
+| During work | All changes happen in isolated worktree |
+| Final | Merges to main, deletes branch, removes worktree, prunes |
+
+**Benefits:**
+- Your current work stays untouched
+- Parallel development without interference
+- Clean merge history
+- Automatic cleanup (no orphaned worktrees)
+
+**What happens if you say "no" or no existing work detected:**
+- AppGen proceeds with standard feature branch workflow
+- No errors, no warnings
+- Identical functionality
+
 #### Worklog Integration (Passive)
 
 If [Worklog](../worklog/) is installed, its hooks provide background context:
