@@ -197,17 +197,27 @@ fi
 
 ## Phase Protocols
 
-### Checkpoint 1: Requirements + Asset Extraction + TaskFlow Detection
+### Checkpoint 1: Requirements + Asset Extraction + Workflow Options
 
 **Your Actions:**
 1. Parse user's `/webgen` command for initial requirements
-2. **Detect TaskFlow availability** (optional integration):
+2. **Detect optional integrations:**
    ```bash
    # Check if TaskFlow plugin exists
    if [ -d "$HOME/.claude/plugins/local-plugins/taskflow" ]; then
      TASKFLOW_AVAILABLE=true
    else
      TASKFLOW_AVAILABLE=false
+   fi
+
+   # Check if output directory is a git repo with existing work
+   cd "${WEBGEN_OUTPUT_DIR:-./webgen-projects}" 2>/dev/null
+   if git rev-parse --git-dir >/dev/null 2>&1; then
+     GIT_REPO=true
+     HAS_CHANGES=$(git status --porcelain | wc -l)
+   else
+     GIT_REPO=false
+     HAS_CHANGES=0
    fi
    ```
 3. **Detect reference assets** in user input:
@@ -221,8 +231,8 @@ fi
    - Target audience
    - Specific features needed
 5. **Dispatch @webgen for asset extraction** if assets detected
-6. **Offer TaskFlow integration** if available (see below)
-7. Confirm requirements, assets, AND TaskFlow preference with user before proceeding
+6. **Offer workflow options** (TaskFlow, Worktrees) if available
+7. Confirm requirements, assets, AND workflow preferences with user before proceeding
 
 **Asset Extraction Dispatch (if assets detected):**
 ```markdown
@@ -269,15 +279,29 @@ Use the asset-management skill for guidance.
 
 **Output Directory:** {WEBGEN_OUTPUT_DIR}/{project-slug} - webgen/
 
+---
+
+**Workflow Options:**
+
+{{#if GIT_REPO && HAS_CHANGES > 0}}
+**Git Worktree (Recommended):**
+I detected you have work in progress in the output directory. Would you like to use a git worktree?
+
+- **Yes** - Create isolated worktree (keeps your current work untouched)
+- **No** - Use standard feature branch in output directory
+
+*Worktrees allow parallel development without interference.*
+{{/if}}
+
 {{#if TASKFLOW_AVAILABLE}}
-**TaskFlow Detected:**
+**TaskFlow:**
 I detected TaskFlow is available. Would you like to track this project with tasks?
 
 - **Yes** - Initialize task tracking, break requirements into tasks, show progress
 - **No** - Continue with standard WebGen workflow
-
-What would you like to do?
 {{/if}}
+
+---
 
 Please confirm these requirements to proceed, or let me know what to adjust.
 ```
@@ -352,13 +376,38 @@ Proceeding to Architecture phase...
 **Trigger:** Research approved
 
 **Your Actions:**
-1. Dispatch @webgen to scaffold project **with asset context**
-2. Review phase report when complete
-3. Validate:
+1. **If worktree enabled:** Create worktree before scaffolding
+2. Dispatch @webgen to scaffold project **with asset context**
+3. Review phase report when complete
+4. Validate:
    - Tech stack appropriate for requirements?
    - Project structure follows standards?
    - **Architecture informed by assets** (if provided)?
    - **Infrastructure verified** (pnpm install complete, dev server running)?
+
+**Worktree Setup (if enabled):**
+```bash
+# Create worktree for isolated development
+WORKTREE_DIR="${WEBGEN_OUTPUT_DIR}/worktrees/${slug}"
+BRANCH_NAME="feat/${slug}"
+
+mkdir -p "${WEBGEN_OUTPUT_DIR}/worktrees"
+git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}" main
+
+# Verify worktree created
+git worktree list | grep "${slug}"
+cd "${WORKTREE_DIR}"
+```
+
+**Store worktree context in session:**
+```json
+{
+  "use_worktree": true,
+  "worktree_path": "${WEBGEN_OUTPUT_DIR}/worktrees/${slug}",
+  "branch_name": "feat/${slug}",
+  "main_path": "${WEBGEN_OUTPUT_DIR}"
+}
+```
 
 **Architecture Dispatch (with asset context):**
 ```markdown
@@ -368,7 +417,12 @@ Proceeding to Architecture phase...
 
 **Context:**
 - Tech requirements: [summary]
+{{#if use_worktree}}
+- Output directory: {worktree_path}/ (worktree)
+- Branch: {branch_name}
+{{else}}
 - Output directory: {WEBGEN_OUTPUT_DIR}/{slug} - webgen/
+{{/if}}
 
 **Reference Assets Available:**
 {{#if assets.length > 0}}
@@ -509,13 +563,14 @@ Proceeding to Legal Pages (if applicable) or Final phase...
 2. If needed, dispatch @webgen for Phase 4.5
 3. Verify legal pages generated with disclaimers
 
-### Checkpoint 5: Final Validation
+### Checkpoint 5: Final Validation + Cleanup
 
 **Trigger:** Implementation (and legal pages if applicable) complete
 
 **Your Actions:**
 1. Dispatch @webgen for final documentation and git merge
-2. Verify:
+2. **If worktree enabled:** Execute worktree cleanup (MANDATORY)
+3. Verify:
    - README.md complete with version footer
    - Design decisions documented
    - Assets documented
@@ -523,13 +578,56 @@ Proceeding to Legal Pages (if applicable) or Final phase...
    - **Feature branch merged to main**
    - **Feature branch deleted**
    - **Project on main branch (not feature branch)**
+   - **Worktree removed (if used)**
    - All original requirements met
+
+**Worktree Cleanup (MANDATORY if worktree used):**
+```bash
+# 1. Ensure all changes committed in worktree
+cd "${worktree_path}"
+git status --porcelain  # Must be empty
+
+# 2. Push the worktree branch
+git push -u origin "${branch_name}"
+
+# 3. Switch to main in the main project area
+cd "${main_path}"
+git checkout main
+git pull origin main
+
+# 4. Merge the feature branch
+git merge "${branch_name}" --no-ff -m "Merge ${branch_name}: ${project_description}"
+
+# 5. Push merged main
+git push origin main
+
+# 6. Delete the remote branch
+git push origin --delete "${branch_name}"
+
+# 7. Remove the worktree
+git worktree remove "${worktree_path}"
+
+# 8. Delete the local branch
+git branch -d "${branch_name}"
+
+# 9. Prune stale worktree references
+git worktree prune
+
+# 10. Verify cleanup
+git worktree list  # Should NOT include removed worktree
+git branch -a | grep "${branch_name}"  # Should return nothing
+```
+
+**CRITICAL:** Never leave orphaned worktrees. This cleanup is NOT optional.
 
 **Git Workflow Verification:**
 ```bash
 # Verify final git state
 git branch  # Should show: * main (with no feature branches)
 git log --oneline -3  # Should show merge commit on top
+{{#if use_worktree}}
+git worktree list  # Should NOT show the project worktree
+{{/if}}
 ```
 
 **Final Report:**
@@ -537,7 +635,13 @@ git log --oneline -3  # Should show merge commit on top
 ✅ CHECKPOINT 5 COMPLETE: Project finished
 
 **Project Summary:**
+{{#if use_worktree}}
+- Location: {main_path}/{slug} - webgen/ (merged from worktree)
+- Worktree: ✅ Cleaned up
+- Remote branch: ✅ Deleted
+{{else}}
 - Location: {output_dir}/{slug} - webgen/
+{{/if}}
 - Stack: [Tech stack]
 - Preview: [Dev server URL]
 - Current branch: main
@@ -550,6 +654,11 @@ git log --oneline -3  # Should show merge commit on top
 - ✅ Screenshot captured
 - ✅ Feature branch merged to main
 - ✅ Feature branch cleaned up
+{{#if use_worktree}}
+- ✅ Worktree removed
+- ✅ Remote branch deleted
+- ✅ Local branch pruned
+{{/if}}
 - ✅ Project on main branch
 
 **Template Promotion:**
