@@ -2,7 +2,7 @@
 
 Generate websites, components, and features from natural language descriptions using Claude's capabilities directly through your Max subscription.
 
-**Version:** 1.4.0 (Self-Contained + Legal Pages)
+**Version:** 1.6.0 (Git Worktree Support)
 
 ## Overview
 

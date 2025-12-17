@@ -5,6 +5,22 @@ All notable changes to the AppGen plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-12-17
+
+### Added
+- **Git Worktree Integration** - Optional isolated development when existing work detected
+  - Automatic detection of uncommitted git work in output directory
+  - User opt-in prompt at Checkpoint 1
+  - Worktree creation at Architecture phase (Checkpoint 5) (`worktrees/{slug}/` on `feat/{slug}` branch)
+  - **Mandatory cleanup protocol** - merge to main, delete branches, remove worktree, prune
+- `skills/worktree-workflow/skill.md` - Setup, working, and cleanup protocols
+
+### Changed
+- Checkpoint 1 now detects git repo status and offers worktree option
+- Checkpoint 5 (Architecture) creates worktree if user opted in
+- Final Steps include mandatory worktree cleanup steps
+- README updated with Git Worktree Integration section
+
 ## [1.0.0] - 2024-12-13
 
 ### Added

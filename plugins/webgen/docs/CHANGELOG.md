@@ -4,6 +4,23 @@ All notable changes to the WebGen plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.6.0] - 2025-12-17
+
+### Added
+- **Git Worktree Integration** - Optional isolated development when existing work detected
+  - Automatic detection of uncommitted git work in output directory
+  - User opt-in prompt at Checkpoint 1
+  - Worktree creation at Architecture phase (`worktrees/{slug}/` on `feat/{slug}` branch)
+  - **Mandatory cleanup protocol** - merge to main, delete branches, remove worktree, prune
+  - Real-world validation: beacon-advisory-support Astro site conversion
+- `skills/worktree-workflow/skill.md` - Setup, working, and cleanup protocols
+
+### Changed
+- Checkpoint 1 now detects git repo status and offers worktree option
+- Checkpoint 3 (Architecture) creates worktree if user opted in
+- Checkpoint 5 (Final) includes mandatory worktree cleanup steps
+- README updated with Git Worktree Integration section
+
 ## [1.5.0] - 2025-12-13
 
 ### Added

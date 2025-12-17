@@ -6,8 +6,8 @@ A collection of Claude Code plugins for enhanced development workflows.
 
 | Plugin | Version | Description |
 |--------|---------|-------------|
-| [webgen](plugins/webgen/) | 1.5.0 | Natural language to production-ready websites and landing pages |
-| [appgen](plugins/appgen/) | 1.0.0 | Full-stack applications and APIs from natural language |
+| [webgen](plugins/webgen/) | 1.6.0 | Natural language to production-ready websites and landing pages |
+| [appgen](plugins/appgen/) | 1.1.0 | Full-stack applications and APIs from natural language |
 | [worklog](plugins/worklog/) | 1.3.0 | Cross-session knowledge persistence with SQLite |
 | [taskflow](plugins/taskflow/) | 1.0.0 | AI-powered task management from PRDs |
 
@@ -156,6 +156,7 @@ Transform natural language descriptions into complete, production-ready web proj
 - React, Next.js, Astro support
 - Asset management (screenshot/design references)
 - Optional TaskFlow integration
+- **Git worktree support** for parallel development
 - Built-in code review agent
 - Design system skill
 - Git feature branch workflow
@@ -181,6 +182,7 @@ Generate full-stack applications and APIs from natural language descriptions.
 - Database design (Prisma/Drizzle)
 - API design (REST, tRPC)
 - Auth integration (Auth.js, Clerk, Lucia)
+- **Git worktree support** for parallel development
 - Testing setup (Vitest, Playwright)
 - Deployment config (Docker, CI/CD)
 
@@ -279,7 +281,7 @@ When plugins are installed together, they detect and offer integrations:
 │                                                                  │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  WebGen  │◄───────►│ TaskFlow │  Track generation phases    │
-│   │  v1.5.0  │ opt-in  │  v1.0.0  │  as tasks with deps         │
+│   │  v1.6.0  │ opt-in  │  v1.0.0  │  as tasks with deps         │
 │   └────┬─────┘         └────┬─────┘                             │
 │        │                    │                                    │
 │        │ (future)           │ (future)                          │
@@ -292,7 +294,7 @@ When plugins are installed together, they detect and offer integrations:
 │                                                                  │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  AppGen  │◄───────►│ TaskFlow │  Track app dev phases       │
-│   │  v1.0.0  │ opt-in  │  v1.0.0  │  as tasks with deps         │
+│   │  v1.1.0  │ opt-in  │  v1.0.0  │  as tasks with deps         │
 │   └────┬─────┘         └────┬─────┘                             │
 │        │                    │                                    │
 │        │ (future)           │ (future)                          │
