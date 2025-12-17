@@ -8,7 +8,7 @@ A collection of Claude Code plugins for enhanced development workflows.
 |--------|---------|-------------|
 | [webgen](plugins/webgen/) | 1.5.0 | Natural language to production-ready websites and landing pages |
 | [appgen](plugins/appgen/) | 1.0.0 | Full-stack applications and APIs from natural language |
-| [worklog](plugins/worklog/) | 1.1.0 | Cross-session knowledge persistence with SQLite |
+| [worklog](plugins/worklog/) | 1.3.0 | Cross-session knowledge persistence with SQLite |
 | [taskflow](plugins/taskflow/) | 1.0.0 | AI-powered task management from PRDs |
 
 ## Installation
@@ -100,6 +100,50 @@ cp -r plugins/worklog ~/.claude/plugins/local-plugins/
 
 # Restart Claude Code to pick up changes
 ```
+
+## When to Use What
+
+Understanding which plugin to use for different scenarios:
+
+| Need | Plugin | Why |
+|------|--------|-----|
+| **Build a website** | WebGen | 5-checkpoint workflow for landing pages, marketing sites |
+| **Build an application** | AppGen | 8-phase workflow for full-stack apps with DB, API, auth |
+| **Track tasks during development** | TaskFlow | PRD parsing, dependencies, next task recommendations |
+| **Remember learnings across sessions** | Worklog | Persistent knowledge, context loading, learning capture |
+
+### Complementary Usage
+
+These plugins work together but serve distinct purposes:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     TYPICAL WORKFLOW                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. /task-parse prd.md         → TaskFlow: Define WHAT to do   │
+│                                                                  │
+│  2. /task next                 → TaskFlow: Pick next task       │
+│                                                                  │
+│  3. /webgen or /appgen ...     → Generators: Do the WORK        │
+│                                                                  │
+│  4. [SessionStop hook]         → Worklog: Capture LEARNINGS     │
+│                                                                  │
+│  5. [Next session starts]      → Worklog: Restore CONTEXT       │
+│                                                                  │
+│  6. /task next                 → TaskFlow: Continue where       │
+│                                  you left off                   │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Plugin | Manages | Persists |
+|--------|---------|----------|
+| **TaskFlow** | Work items (tasks, subtasks, dependencies) | Per-project in `.tasks/` |
+| **Worklog** | Knowledge (learnings, patterns, errors, context) | Cross-project in `worklog.db` |
+| **WebGen/AppGen** | Generation workflows | Project output folders |
+
+**Key insight:** TaskFlow tracks **what you're doing**, Worklog remembers **what you learned**.
 
 ## Plugin Overview
 
@@ -242,8 +286,8 @@ When plugins are installed together, they detect and offer integrations:
 │        │                    │                                    │
 │        ▼                    ▼                                    │
 │   ┌──────────┐         ┌──────────┐                             │
-│   │  Worklog │         │  Worklog │  Context loading via hooks  │
-│   │  v1.2.0  │         │  v1.2.0  │  Learning capture           │
+│   │  Worklog │         │  Worklog │  Progressive disclosure +   │
+│   │  v1.3.0  │         │  v1.3.0  │  AI compression             │
 │   └──────────┘         └──────────┘                             │
 │                                                                  │
 │   ┌──────────┐         ┌──────────┐                             │
@@ -254,8 +298,8 @@ When plugins are installed together, they detect and offer integrations:
 │        │ (future)           │ (future)                          │
 │        ▼                    ▼                                    │
 │   ┌──────────┐         ┌──────────┐                             │
-│   │  Worklog │         │  Worklog │  Context loading via hooks  │
-│   │  v1.2.0  │         │  v1.2.0  │  Learning capture           │
+│   │  Worklog │         │  Worklog │  Progressive disclosure +   │
+│   │  v1.3.0  │         │  v1.3.0  │  AI compression             │
 │   └──────────┘         └──────────┘                             │
 │                                                                  │
 │   Legend:                                                        │
@@ -316,9 +360,14 @@ Worklog hooks fire on **every session**, regardless of which plugins are active:
 |------|---------------|-------------|
 | off | Nothing | Nothing |
 | remind | Reminder only | Suggest storing |
-| light | Recent work + memories | Prompt to log |
-| full | Comprehensive context | Auto-log summary |
-| aggressive | Full + flagged items | Auto-extract learnings |
+| light | Summary index (~150-300 tokens) | Prompt to log |
+| full | Detailed index (~300-500 tokens) | Auto-log compressed summary |
+| aggressive | Index + critical auto-fetch | Auto-extract all learnings |
+
+**v1.3.0 Improvements:**
+- **Progressive disclosure**: Index-first injection (60-70% fewer tokens)
+- **AI compression**: Semantic extraction vs raw transcripts
+- **PostToolUse hook**: Optional auto-capture of significant file changes
 
 ### Planned Integrations (Future)
 

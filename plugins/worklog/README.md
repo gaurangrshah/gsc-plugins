@@ -2,7 +2,7 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions using SQLite.
 
-**Version:** 1.2.0
+**Version:** 1.3.0
 
 ## Overview
 
@@ -175,9 +175,9 @@ Hooks automatically load context at session start and capture learnings at sessi
 |------|---------------|-------------|----------|
 | **off** | Nothing | Nothing | Full manual control |
 | **remind** | Reminder only | Suggest storing | Minimal overhead |
-| **light** | Recent work + memories | Prompt to log | Balanced automation |
-| **full** | Protocols, work, issues, errors, memories | Auto-log summary | Comprehensive tracking |
-| **aggressive** | Full + log session start + flagged items | Auto-extract learnings | Power users, shared DBs |
+| **light** | Summary index (~150-300 tokens) | Prompt to log | Balanced automation |
+| **full** | Detailed index (~300-500 tokens) | Auto-log compressed summary | Comprehensive tracking |
+| **aggressive** | Index + critical auto-fetch | Auto-extract all learnings | Power users, shared DBs |
 
 **Hook mode is independent of profile** - you can mix any profile with any hook mode.
 
@@ -187,6 +187,71 @@ Hooks automatically load context at session start and capture learnings at sessi
 - **Context always available**: Start each session with relevant history
 - **Learning compounds**: Knowledge extracted and stored without manual effort
 - **Background operation**: Hooks run without blocking your work
+- **Token efficient**: Progressive disclosure reduces context bloat by 60-70%
+
+### Progressive Disclosure (SessionStart)
+
+Instead of dumping all context at once, hooks now inject a **summary index** first:
+
+| Layer | What | When | Token Cost |
+|-------|------|------|------------|
+| **1. Index** | Summary of available context | Always (SessionStart) | ~100-300 tokens |
+| **2. Details** | Full content for selected items | On-demand (memory-recall) | ~500-2000 tokens |
+| **3. Source** | Original entries/queries | Explicit request | Variable |
+
+**Example output (light mode):**
+```
+<worklog-context mode="light" disclosure="index">
+## Available Context
+
+| Category | Count | Est. Tokens | Top Items |
+|----------|-------|-------------|-----------|
+| Recent Work (24h) | 3 | ~450 | Auth system, API refactor |
+| Active Memories | 5 | ~1000 | ctx_ubuntu_session, ... |
+
+**To fetch full details:** Use `memory-recall` skill with category filter.
+</worklog-context>
+```
+
+### AI Compression (SessionStop)
+
+Sessions are compressed into semantic learnings, not raw transcripts:
+
+| Raw Data | Compressed Output | Storage |
+|----------|-------------------|---------|
+| Full conversation (10,000+ tokens) | 1-2 sentence summary (~100 tokens) | entries.outcome |
+| Debugging steps | Root cause + resolution | error_patterns |
+| Decisions discussed | Decision + rationale | knowledge_base |
+| Patterns observed | Pattern + when to apply | knowledge_base |
+
+**Aggressive mode extracts:**
+- Decisions (choice, rationale, alternatives)
+- Patterns (description, when to use, examples)
+- Errors (signature, root cause, resolution, prevention)
+- Gotchas (wrong approach, right approach, context)
+
+### PostToolUse Hook (Optional)
+
+Automatically capture significant file changes during sessions. **OFF by default.**
+
+Enable in `~/.claude/worklog.local.md`:
+```yaml
+---
+capture_observations: true          # Enable PostToolUse hook
+capture_filter: significant         # all | significant | decisions-only
+capture_files: ["*.md", "*.ts", "*.py", "*.json"]
+capture_exclude: ["node_modules/*", "*.lock"]
+---
+```
+
+| Capture Mode | What Gets Captured | Recommended For |
+|--------------|-------------------|-----------------|
+| `off` (default) | Nothing | Most users |
+| `significant` | Config files, schemas, docs, major code changes | Power users |
+| `decisions-only` | Only explicit decision markers in changes | Minimal overhead |
+| `all` | Every Write/Edit to matching files | Debug/audit only |
+
+Observations are stored to `memories` table with `status='staging'` for review at session end.
 
 ### Minimal
 - Core tables only (6 tables)
@@ -397,8 +462,9 @@ worklog/
 │   ├── worklog-configure.md
 │   └── worklog-status.md
 ├── hooks/
-│   ├── session-start.md      # Auto-load context
-│   └── session-stop.md       # Auto-capture learnings
+│   ├── session-start.md      # Auto-load context (progressive disclosure)
+│   ├── session-stop.md       # Auto-capture learnings (AI compression)
+│   └── post-tool-use.md      # Optional: capture significant file changes
 ├── skills/
 │   ├── memory-store/skill.md
 │   ├── memory-recall/skill.md
@@ -438,6 +504,13 @@ chmod 775 /path/to/db/directory
 ```
 
 ## Version History
+
+### 1.3.0
+- **Progressive Disclosure (SessionStart)**: Index-first injection reduces context bloat by 60-70%
+- **AI Compression (SessionStop)**: Semantic extraction of learnings vs raw transcript logging
+- **PostToolUse Hook**: Optional auto-capture of significant file changes (off by default)
+- **Deep Extraction (Aggressive)**: Automatically extracts decisions, patterns, errors, gotchas
+- **Token Efficiency**: Typical injection reduced from ~1500-3000 tokens to ~300-500 tokens
 
 ### 1.2.0
 - **Hooks for Automation**: SessionStart and Stop hooks for automatic context loading and learning capture
