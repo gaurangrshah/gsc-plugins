@@ -40,7 +40,16 @@ def get_database_path() -> Path:
     )
 
 # Tables available in the database
-TABLES = ["memories", "knowledge_base", "entries", "research"]
+TABLES = ["memories", "knowledge_base", "entries", "research", "agent_chat"]
+
+# Valid agent names for chat
+AGENTS = ["alfred", "macadmin", "jarvis", "all"]
+
+# Chat message statuses
+CHAT_STATUSES = ["pending", "read", "replied", "resolved"]
+
+# Chat priority levels
+CHAT_PRIORITIES = ["low", "normal", "urgent"]
 
 # Memory types
 MEMORY_TYPES = ["fact", "entity", "preference", "context"]

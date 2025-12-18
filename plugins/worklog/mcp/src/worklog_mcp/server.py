@@ -598,6 +598,255 @@ async def get_recent_entries(
             }
 
 
+# =============================================================================
+# AGENT CHAT TOOLS
+# =============================================================================
+
+
+@mcp.tool()
+async def send_message(
+    to_agent: str,
+    message: str,
+    from_agent: Optional[str] = None,
+    context: Optional[str] = None,
+    priority: str = "normal",
+) -> dict:
+    """Send a message to another agent for quick help mid-task.
+
+    Args:
+        to_agent: Target agent (alfred, macadmin, jarvis, or 'all' for broadcast)
+        message: The message/question to send
+        from_agent: Sender agent name (auto-detected from hostname if not provided)
+        context: Optional context about current task
+        priority: Message priority (low, normal, urgent)
+
+    Returns:
+        dict with message_id and status
+    """
+    from worklog_mcp.config import AGENTS, CHAT_PRIORITIES
+
+    # Validate target agent
+    if to_agent not in AGENTS:
+        return {"error": f"Invalid agent. Must be one of: {AGENTS}"}
+
+    if priority not in CHAT_PRIORITIES:
+        return {"error": f"Invalid priority. Must be one of: {CHAT_PRIORITIES}"}
+
+    # Auto-detect sender from hostname if not provided
+    if not from_agent:
+        import os
+        hostname = os.uname().nodename.lower()
+        if "atlas" in hostname:
+            from_agent = "alfred"
+        elif "m4" in hostname or "mac" in hostname:
+            from_agent = "macadmin"
+        elif "ubuntu" in hostname or "mini" in hostname:
+            from_agent = "jarvis"
+        else:
+            from_agent = "unknown"
+
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+        cursor = await db.execute(
+            """INSERT INTO agent_chat
+               (from_agent, to_agent, message, context, priority)
+               VALUES (?, ?, ?, ?, ?)""",
+            (from_agent, to_agent, message, context, priority),
+        )
+        await db.commit()
+        message_id = cursor.lastrowid
+
+    return {
+        "message_id": message_id,
+        "status": "sent",
+        "to": to_agent,
+        "from": from_agent,
+        "priority": priority,
+    }
+
+
+@mcp.tool()
+async def check_messages(
+    agent: Optional[str] = None,
+    include_read: bool = False,
+) -> dict:
+    """Check for incoming messages. Call this periodically when expecting replies.
+
+    Args:
+        agent: Your agent name (auto-detected if not provided)
+        include_read: Include already-read messages (default False)
+
+    Returns:
+        dict with pending messages
+    """
+    # Auto-detect agent from hostname if not provided
+    if not agent:
+        import os
+        hostname = os.uname().nodename.lower()
+        if "atlas" in hostname:
+            agent = "alfred"
+        elif "m4" in hostname or "mac" in hostname:
+            agent = "macadmin"
+        elif "ubuntu" in hostname or "mini" in hostname:
+            agent = "jarvis"
+        else:
+            agent = "unknown"
+
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+
+        if include_read:
+            status_filter = "('pending', 'read')"
+        else:
+            status_filter = "('pending')"
+
+        # Get messages addressed to this agent or broadcast
+        sql = f"""
+            SELECT id, from_agent, to_agent, message, context, priority,
+                   status, parent_id, response, created_at, read_at
+            FROM agent_chat
+            WHERE (to_agent = ? OR to_agent = 'all')
+              AND from_agent != ?
+              AND status IN {status_filter}
+            ORDER BY
+                CASE priority WHEN 'urgent' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END,
+                created_at DESC
+        """
+
+        async with db.execute(sql, (agent, agent)) as cursor:
+            rows = await cursor.fetchall()
+            messages = [dict(row) for row in rows]
+
+        # Mark pending messages as read
+        if messages:
+            pending_ids = [m["id"] for m in messages if m["status"] == "pending"]
+            if pending_ids:
+                placeholders = ",".join("?" for _ in pending_ids)
+                await db.execute(
+                    f"""UPDATE agent_chat
+                        SET status = 'read', read_at = CURRENT_TIMESTAMP
+                        WHERE id IN ({placeholders})""",
+                    pending_ids,
+                )
+                await db.commit()
+
+        return {
+            "messages": messages,
+            "count": len(messages),
+            "agent": agent,
+        }
+
+
+@mcp.tool()
+async def reply_message(
+    message_id: int,
+    response: str,
+    from_agent: Optional[str] = None,
+    resolve: bool = True,
+) -> dict:
+    """Reply to a message from another agent.
+
+    Args:
+        message_id: ID of the message to reply to
+        response: Your response text
+        from_agent: Your agent name (auto-detected if not provided)
+        resolve: Mark the conversation as resolved (default True)
+
+    Returns:
+        dict with reply status
+    """
+    # Auto-detect agent from hostname if not provided
+    if not from_agent:
+        import os
+        hostname = os.uname().nodename.lower()
+        if "atlas" in hostname:
+            from_agent = "alfred"
+        elif "m4" in hostname or "mac" in hostname:
+            from_agent = "macadmin"
+        elif "ubuntu" in hostname or "mini" in hostname:
+            from_agent = "jarvis"
+        else:
+            from_agent = "unknown"
+
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+
+        # Get the original message
+        async with db.execute(
+            "SELECT * FROM agent_chat WHERE id = ?", (message_id,)
+        ) as cursor:
+            original = await cursor.fetchone()
+
+        if not original:
+            return {"error": f"Message {message_id} not found"}
+
+        new_status = "resolved" if resolve else "replied"
+
+        # Update original message with response
+        await db.execute(
+            """UPDATE agent_chat
+               SET response = ?, status = ?, resolved_at = CURRENT_TIMESTAMP
+               WHERE id = ?""",
+            (response, new_status, message_id),
+        )
+        await db.commit()
+
+    return {
+        "status": "replied",
+        "message_id": message_id,
+        "original_from": original["from_agent"],
+        "resolved": resolve,
+    }
+
+
+@mcp.tool()
+async def check_replies(
+    agent: Optional[str] = None,
+) -> dict:
+    """Check for replies to messages you sent.
+
+    Args:
+        agent: Your agent name (auto-detected if not provided)
+
+    Returns:
+        dict with replied/resolved messages you sent
+    """
+    # Auto-detect agent from hostname if not provided
+    if not agent:
+        import os
+        hostname = os.uname().nodename.lower()
+        if "atlas" in hostname:
+            agent = "alfred"
+        elif "m4" in hostname or "mac" in hostname:
+            agent = "macadmin"
+        elif "ubuntu" in hostname or "mini" in hostname:
+            agent = "jarvis"
+        else:
+            agent = "unknown"
+
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+
+        sql = """
+            SELECT id, from_agent, to_agent, message, context, priority,
+                   status, response, created_at, resolved_at
+            FROM agent_chat
+            WHERE from_agent = ?
+              AND status IN ('replied', 'resolved')
+              AND response IS NOT NULL
+            ORDER BY resolved_at DESC
+            LIMIT 20
+        """
+
+        async with db.execute(sql, (agent,)) as cursor:
+            rows = await cursor.fetchall()
+            return {
+                "replies": [dict(row) for row in rows],
+                "count": len(rows),
+                "agent": agent,
+            }
+
+
 def main():
     """Run the MCP server."""
     mcp.run()

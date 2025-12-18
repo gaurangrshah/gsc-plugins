@@ -15,7 +15,7 @@ def test_database_path_exists():
 
 def test_tables_defined():
     """Test that all expected tables are defined."""
-    expected = ["memories", "knowledge_base", "entries", "research"]
+    expected = ["memories", "knowledge_base", "entries", "research", "agent_chat"]
     assert TABLES == expected
 
 
