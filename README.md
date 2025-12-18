@@ -101,6 +101,64 @@ cp -r plugins/worklog ~/.claude/plugins/local-plugins/
 # Restart Claude Code to pick up changes
 ```
 
+## Uninstalling
+
+### Via Claude CLI (Marketplace Installations)
+
+```bash
+# Uninstall individual plugins
+claude plugin uninstall webgen@gsc-plugins
+claude plugin uninstall appgen@gsc-plugins
+claude plugin uninstall worklog@gsc-plugins
+claude plugin uninstall taskflow@gsc-plugins
+
+# Remove the marketplace entirely (optional)
+claude plugin marketplace remove gsc-plugins
+```
+
+### Via Slash Commands (Inside Claude Code)
+
+```
+/plugin uninstall webgen@gsc-plugins
+/plugin uninstall appgen@gsc-plugins
+```
+
+### Manual Installations
+
+If you installed manually to local-plugins:
+
+```bash
+# Remove specific plugins
+rm -rf ~/.claude/plugins/local-plugins/webgen
+rm -rf ~/.claude/plugins/local-plugins/appgen
+rm -rf ~/.claude/plugins/local-plugins/worklog
+rm -rf ~/.claude/plugins/local-plugins/taskflow
+
+# Restart Claude Code to apply changes
+```
+
+### Complete Cleanup
+
+To remove everything (marketplace + all plugins):
+
+```bash
+# 1. Uninstall all plugins
+claude plugin uninstall webgen@gsc-plugins
+claude plugin uninstall appgen@gsc-plugins
+claude plugin uninstall worklog@gsc-plugins
+claude plugin uninstall taskflow@gsc-plugins
+
+# 2. Remove marketplace
+claude plugin marketplace remove gsc-plugins
+
+# 3. Remove any manual installations
+rm -rf ~/.claude/plugins/local-plugins/{webgen,appgen,worklog,taskflow}
+
+# 4. Restart Claude Code
+```
+
+**Note:** Uninstalling worklog does NOT delete your `worklog.db` database. Your knowledge and work history are preserved.
+
 ## When to Use What
 
 Understanding which plugin to use for different scenarios:
