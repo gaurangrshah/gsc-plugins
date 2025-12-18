@@ -103,9 +103,24 @@ When `$DOCS_ROOT` is set, memory-sync:
 
 ### 1. Install Plugin
 
-Copy the `worklog/` folder to your Claude Code plugins directory:
+**Option A: Marketplace (Recommended)**
 ```bash
-cp -r worklog ~/.claude/plugins/local-plugins/
+# Add the marketplace (if not already added)
+claude plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
+
+# Install the plugin
+claude plugin install worklog@gsc-plugins
+```
+
+**Option B: Manual Installation**
+```bash
+# Clone the repo
+git clone https://github.com/gaurangrshah/gsc-plugins.git
+
+# Copy to local-plugins
+cp -r gsc-plugins/plugins/worklog ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to activate
 ```
 
 ### 2. Initialize
@@ -291,6 +306,26 @@ Observations are stored to `memories` table with `status='staging'` for review a
 
 **New in v1.4.0:** The worklog plugin includes an MCP server for direct tool access.
 
+### MCP Server Setup
+
+The MCP server requires Python 3.11+ and must be installed separately:
+
+```bash
+# Navigate to the MCP server directory (adjust path based on installation method)
+# Marketplace:
+cd ~/.claude/plugins/marketplaces/gsc-plugins/worklog/mcp
+# OR Manual/Local:
+cd ~/.claude/plugins/local-plugins/worklog/mcp
+
+# Install the package
+pip install -e .
+
+# Verify installation
+python -m worklog_mcp --help
+```
+
+Once installed, Claude Code automatically detects the MCP server via the plugin's `.mcp.json` configuration.
+
 ### When to Use Each Approach
 
 | Approach | Best For |
@@ -301,7 +336,7 @@ Observations are stored to `memories` table with `status='staging'` for review a
 
 ### Available MCP Tools
 
-When the plugin is enabled, these tools are available as `mcp__worklog__<tool>`:
+When the MCP server is installed and the plugin is enabled, these tools are available as `mcp__worklog__<tool>`:
 
 | Tool | Description |
 |------|-------------|

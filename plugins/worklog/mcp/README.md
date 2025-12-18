@@ -16,14 +16,34 @@ This MCP server complements the worklog plugin's skills and commands by providin
 
 ## Installation
 
-The MCP server is automatically available when the worklog plugin is enabled.
+### Prerequisites
 
-### Manual Installation (Development)
+- Python 3.11 or higher
+- The worklog plugin installed
+
+### Step 1: Install Python Dependencies
 
 ```bash
-cd plugins/worklog/mcp
+# Navigate to the MCP server directory
+cd ~/.claude/plugins/local-plugins/worklog/mcp  # or marketplace path
+
+# Install the package
+pip install -e .
+
+# For development (includes test dependencies)
 pip install -e ".[dev]"
 ```
+
+### Step 2: Verify Installation
+
+```bash
+# Test the server starts correctly
+python -m worklog_mcp --help
+```
+
+### Automatic Activation
+
+Once the worklog plugin is installed, the MCP server is automatically configured via the plugin's `.mcp.json` file. Claude Code reads this configuration and makes the tools available as `mcp__worklog__<tool_name>`.
 
 ## Tools
 

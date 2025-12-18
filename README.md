@@ -8,8 +8,9 @@ A collection of Claude Code plugins for enhanced development workflows.
 |--------|---------|-------------|
 | [webgen](plugins/webgen/) | 1.6.0 | Natural language to production-ready websites and landing pages |
 | [appgen](plugins/appgen/) | 1.1.0 | Full-stack applications and APIs from natural language |
-| [worklog](plugins/worklog/) | 1.3.0 | Cross-session knowledge persistence with SQLite |
+| [worklog](plugins/worklog/) | 1.4.0 | Cross-session knowledge persistence with SQLite |
 | [taskflow](plugins/taskflow/) | 1.0.0 | AI-powered task management from PRDs |
+| [docs](plugins/docs/) | 1.0.0 | Documentation management and quality assurance |
 
 ## Installation
 
@@ -30,6 +31,7 @@ claude plugin install webgen@gsc-plugins
 claude plugin install appgen@gsc-plugins
 claude plugin install worklog@gsc-plugins
 claude plugin install taskflow@gsc-plugins
+claude plugin install docs@gsc-plugins
 ```
 
 ### Option 2: Slash Commands (Inside Claude Code)
@@ -54,6 +56,7 @@ cp -r gsc-plugins/plugins/webgen ~/.claude/plugins/local-plugins/
 cp -r gsc-plugins/plugins/appgen ~/.claude/plugins/local-plugins/
 cp -r gsc-plugins/plugins/worklog ~/.claude/plugins/local-plugins/
 cp -r gsc-plugins/plugins/taskflow ~/.claude/plugins/local-plugins/
+cp -r gsc-plugins/plugins/docs ~/.claude/plugins/local-plugins/
 
 # Restart Claude Code to pick up the new plugins
 ```
@@ -111,6 +114,7 @@ claude plugin uninstall webgen@gsc-plugins
 claude plugin uninstall appgen@gsc-plugins
 claude plugin uninstall worklog@gsc-plugins
 claude plugin uninstall taskflow@gsc-plugins
+claude plugin uninstall docs@gsc-plugins
 
 # Remove the marketplace entirely (optional)
 claude plugin marketplace remove gsc-plugins
@@ -133,6 +137,7 @@ rm -rf ~/.claude/plugins/local-plugins/webgen
 rm -rf ~/.claude/plugins/local-plugins/appgen
 rm -rf ~/.claude/plugins/local-plugins/worklog
 rm -rf ~/.claude/plugins/local-plugins/taskflow
+rm -rf ~/.claude/plugins/local-plugins/docs
 
 # Restart Claude Code to apply changes
 ```
@@ -147,12 +152,13 @@ claude plugin uninstall webgen@gsc-plugins
 claude plugin uninstall appgen@gsc-plugins
 claude plugin uninstall worklog@gsc-plugins
 claude plugin uninstall taskflow@gsc-plugins
+claude plugin uninstall docs@gsc-plugins
 
 # 2. Remove marketplace
 claude plugin marketplace remove gsc-plugins
 
 # 3. Remove any manual installations
-rm -rf ~/.claude/plugins/local-plugins/{webgen,appgen,worklog,taskflow}
+rm -rf ~/.claude/plugins/local-plugins/{webgen,appgen,worklog,taskflow,docs}
 
 # 4. Restart Claude Code
 ```
@@ -169,6 +175,7 @@ Understanding which plugin to use for different scenarios:
 | **Build an application** | AppGen | 8-phase workflow for full-stack apps with DB, API, auth |
 | **Track tasks during development** | TaskFlow | PRD parsing, dependencies, next task recommendations |
 | **Remember learnings across sessions** | Worklog | Persistent knowledge, context loading, learning capture |
+| **Maintain documentation** | Docs | Single source of truth, validation, journal reconciliation |
 
 ### Complementary Usage
 
@@ -264,6 +271,8 @@ Cross-session knowledge persistence using SQLite. Maintain context, learnings, a
 **Features:**
 - 3 profile levels (minimal, standard, full)
 - Memory store/recall/sync skills
+- **MCP server for programmatic database access** (v1.4.0)
+- Session hooks for automatic context loading and learning capture
 - Multi-system support with shared databases
 - Error pattern tracking
 - Network retry logic for shared databases
@@ -273,7 +282,7 @@ Cross-session knowledge persistence using SQLite. Maintain context, learnings, a
 /worklog-init
 ```
 
-**Dependencies:** SQLite 3.0+
+**Dependencies:** SQLite 3.0+, Python 3.11+ (for MCP server)
 
 [Full documentation →](plugins/worklog/README.md)
 
@@ -302,11 +311,33 @@ AI-powered task management system. Transform PRDs into structured, dependency-aw
 
 ---
 
+### Docs
+
+Documentation management and quality assurance. Enforces single source of truth philosophy with validation.
+
+**Features:**
+- Single source of truth philosophy
+- Journal reconciliation workflow
+- Proactive validation checks
+- Frontmatter compliance
+- Worklog integration for persistence
+
+**Quick Start:**
+```
+/docs-init
+/docs-validate
+/docs-reconcile /tmp/journal-notes.md
+```
+
+[Full documentation →](plugins/docs/README.md)
+
+---
+
 ## Plugin Architecture
 
 ### Standalone by Design
 
-**Every plugin works 100% independently.** Install one, two, or all four—each functions fully without the others.
+**Every plugin works 100% independently.** Install one, two, or all five—each functions fully without the others.
 
 | Installation | Status | Notes |
 |--------------|--------|-------|
@@ -314,6 +345,7 @@ AI-powered task management system. Transform PRDs into structured, dependency-aw
 | appgen only | ✅ Full | All 8 phases work |
 | taskflow only | ✅ Full | Complete task management |
 | worklog only | ✅ Full | All hooks + skills work |
+| docs only | ✅ Full | All commands + skills work |
 | Any combination | ✅ Full | Optional enhancements activate |
 
 ### How Plugins Detect Each Other
@@ -447,6 +479,7 @@ Each plugin uses separate storage—no conflicts possible:
 | AppGen | `{APPGEN_OUTPUT_DIR}/` | Project folders |
 | TaskFlow | `.tasks/` (per project) | JSON files |
 | Worklog | `worklog.db` (global) | SQLite database |
+| Docs | `$DOCS_ROOT/`, `$KNOWLEDGE_BASE/` | Markdown files |
 
 ## Requirements
 
@@ -454,8 +487,9 @@ Each plugin uses separate storage—no conflicts possible:
 |--------|--------------|
 | webgen | Node.js 18+, pnpm 8+ (or npm/yarn) |
 | appgen | Node.js 18+, pnpm 8+, PostgreSQL (optional) |
-| worklog | SQLite 3.0+ |
+| worklog | SQLite 3.0+, Python 3.11+ (for MCP server) |
 | taskflow | None (pure Claude Code) |
+| docs | None (pure Claude Code) |
 
 ## Configuration
 
@@ -465,6 +499,7 @@ Each plugin has its own configuration. See individual plugin READMEs for details
 - [appgen configuration](plugins/appgen/README.md#configuration)
 - [worklog configuration](plugins/worklog/README.md#configuration)
 - [taskflow configuration](plugins/taskflow/README.md#configuration)
+- [docs configuration](plugins/docs/README.md#configuration)
 
 ## License
 

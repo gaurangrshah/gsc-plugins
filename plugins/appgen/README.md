@@ -10,12 +10,27 @@ AppGen is a **self-contained** Claude Code plugin that transforms natural langua
 
 ## Installation
 
-The plugin is already installed at:
-```
-~/.claude/plugins/local-plugins/appgen/
+### Option 1: Marketplace (Recommended)
+
+```bash
+# Add the marketplace (if not already added)
+claude plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
+
+# Install the plugin
+claude plugin install appgen@gsc-plugins
 ```
 
-Restart Claude Code to activate it.
+### Option 2: Manual Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/gaurangrshah/gsc-plugins.git
+
+# Copy to local-plugins
+cp -r gsc-plugins/plugins/appgen ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to activate
+```
 
 ## Usage
 

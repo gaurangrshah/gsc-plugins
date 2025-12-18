@@ -10,12 +10,27 @@ WebGen is a **self-contained** Claude Code plugin that transforms natural langua
 
 ## Installation
 
-The plugin is already installed at:
-```
-~/.claude/plugins/local-plugins/webgen/
+### Option 1: Marketplace (Recommended)
+
+```bash
+# Add the marketplace (if not already added)
+claude plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
+
+# Install the plugin
+claude plugin install webgen@gsc-plugins
 ```
 
-Restart Claude Code to activate it.
+### Option 2: Manual Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/gaurangrshah/gsc-plugins.git
+
+# Copy to local-plugins
+cp -r gsc-plugins/plugins/webgen ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to activate
+```
 
 ## Usage
 

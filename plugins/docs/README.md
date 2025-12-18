@@ -2,6 +2,32 @@
 
 **Docs** is a Claude Code plugin for documentation management and quality assurance. It enforces a single source of truth philosophy with inline updates, journal reconciliation, and proactive validation.
 
+**Version:** 1.0.0
+
+## Installation
+
+### Option 1: Marketplace (Recommended)
+
+```bash
+# Add the marketplace (if not already added)
+claude plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
+
+# Install the plugin
+claude plugin install docs@gsc-plugins
+```
+
+### Option 2: Manual Installation
+
+```bash
+# Clone the repo
+git clone https://github.com/gaurangrshah/gsc-plugins.git
+
+# Copy to local-plugins
+cp -r gsc-plugins/plugins/docs ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to activate
+```
+
 ## Core Capabilities
 
 The plugin provides two complementary skills: **docs-manager** for creating and maintaining documentation, and **docs-validator** for quality assurance. Together they ensure documentation stays current, consistent, and queryable.
@@ -138,5 +164,4 @@ Trivial           → No action needed
 
 ---
 
-**Version:** 1.0.0
 **License:** MIT

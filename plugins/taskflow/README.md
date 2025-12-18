@@ -64,9 +64,24 @@ TaskFlow doesn't actively integrate with Worklog yet, but Worklog's general-purp
 
 ### 1. Install Plugin
 
-Copy to your Claude Code plugins directory:
+**Option A: Marketplace (Recommended)**
 ```bash
-cp -r taskflow ~/.claude/plugins/local-plugins/
+# Add the marketplace (if not already added)
+claude plugin marketplace add https://github.com/gaurangrshah/gsc-plugins.git
+
+# Install the plugin
+claude plugin install taskflow@gsc-plugins
+```
+
+**Option B: Manual Installation**
+```bash
+# Clone the repo
+git clone https://github.com/gaurangrshah/gsc-plugins.git
+
+# Copy to local-plugins
+cp -r gsc-plugins/plugins/taskflow ~/.claude/plugins/local-plugins/
+
+# Restart Claude Code to activate
 ```
 
 ### 2. Configure (Optional)
