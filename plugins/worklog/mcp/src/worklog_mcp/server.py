@@ -28,12 +28,16 @@ mcp = FastMCP(
 )
 
 
-async def get_db() -> aiosqlite.Connection:
-    """Get database connection with row factory."""
+def get_db() -> aiosqlite.Connection:
+    """Get database connection with row factory.
+
+    Returns an aiosqlite.Connection context manager. Use as:
+        async with get_db() as db:
+            ...
+    """
     db_path = get_database_path()
-    db = await aiosqlite.connect(str(db_path))
-    db.row_factory = aiosqlite.Row
-    return db
+    conn = aiosqlite.connect(str(db_path))
+    return conn
 
 
 # =============================================================================
@@ -81,7 +85,8 @@ async def query_table(
 
     query += f" LIMIT {limit} OFFSET {offset}"
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         # Get total count
         async with db.execute(count_query) as cursor:
             count_row = await cursor.fetchone()
@@ -128,7 +133,8 @@ async def search_knowledge(
     results = {}
     search_term = f"%{query}%"
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         for table in search_tables:
             # Build search based on table schema
             if table == "memories":
@@ -211,7 +217,8 @@ async def recall_context(
         "recent_work": [],
     }
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         # Get relevant memories
         type_placeholders = ",".join(["?" for _ in types])
         memory_sql = f"""
@@ -269,7 +276,8 @@ async def get_knowledge_entry(id: int) -> dict:
     Returns:
         Full entry with all fields
     """
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         async with db.execute(
             "SELECT * FROM knowledge_base WHERE id = ?", (id,)
         ) as cursor:
@@ -289,7 +297,8 @@ async def get_memory(key: str) -> dict:
     Returns:
         Full memory with all fields
     """
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         # Update access count and timestamp
         await db.execute(
             """UPDATE memories SET
@@ -345,7 +354,8 @@ async def store_memory(
 
     importance = max(1, min(10, importance))
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         try:
             cursor = await db.execute(
                 """INSERT INTO memories
@@ -414,7 +424,8 @@ async def update_memory(
 
     params.append(key)
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             f"UPDATE memories SET {', '.join(updates)} WHERE key = ?",
             params
@@ -456,7 +467,8 @@ async def log_entry(
     if task_type not in TASK_TYPES:
         return {"error": f"Invalid task_type. Must be one of: {TASK_TYPES}"}
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         cursor = await db.execute(
             """INSERT INTO entries
                (agent, task_type, title, details, decision_rationale, outcome, tags, related_files)
@@ -498,7 +510,8 @@ async def store_knowledge(
     if category not in KB_CATEGORIES:
         return {"error": f"Invalid category. Must be one of: {KB_CATEGORIES}"}
 
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         try:
             cursor = await db.execute(
                 """INSERT INTO knowledge_base
@@ -528,7 +541,8 @@ async def list_tables() -> dict:
     Returns:
         dict with table names and counts
     """
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         tables = {}
         for table in TABLES:
             async with db.execute(f"SELECT COUNT(*) as count FROM {table}") as cursor:
@@ -554,7 +568,8 @@ async def get_recent_entries(
     Returns:
         dict with recent entries
     """
-    async with await get_db() as db:
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
         if agent:
             sql = """
                 SELECT id, timestamp, agent, task_type, title, outcome, tags
