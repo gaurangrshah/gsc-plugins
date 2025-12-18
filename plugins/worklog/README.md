@@ -2,7 +2,7 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions using SQLite.
 
-**Version:** 1.3.0
+**Version:** 1.4.0
 
 ## Overview
 
@@ -287,6 +287,72 @@ Observations are stored to `memories` table with `status='staging'` for review a
 | `memory-recall` | Query context and history |
 | `memory-sync` | Reconcile with local docs |
 
+## MCP Server (Programmatic Access)
+
+**New in v1.4.0:** The worklog plugin includes an MCP server for direct tool access.
+
+### When to Use Each Approach
+
+| Approach | Best For |
+|----------|----------|
+| **Skills** | Human-guided workflows with context and validation |
+| **Commands** | Configuration and status checks |
+| **MCP Tools** | Programmatic access, automation, agent-to-agent |
+
+### Available MCP Tools
+
+When the plugin is enabled, these tools are available as `mcp__worklog__<tool>`:
+
+| Tool | Description |
+|------|-------------|
+| `query_table` | Query any table with filtering, pagination |
+| `search_knowledge` | Full-text search across tables |
+| `recall_context` | Smart context retrieval for agent sessions |
+| `get_knowledge_entry` | Get KB entry by ID |
+| `get_memory` | Get memory by key |
+| `store_memory` | Store new memories |
+| `update_memory` | Update existing memories |
+| `log_entry` | Log work entries |
+| `store_knowledge` | Add to knowledge base |
+| `list_tables` | List tables with counts |
+| `get_recent_entries` | Recent work by agent |
+
+### MCP Usage Examples
+
+```python
+# Load context at task start
+mcp__worklog__recall_context(topic="deployment", min_importance=5)
+
+# Store a learning
+mcp__worklog__store_memory(
+    key="fact_agent_20251217_learning",
+    content="Important discovery...",
+    memory_type="fact",
+    importance=7
+)
+
+# Search across all knowledge
+mcp__worklog__search_knowledge(query="SSH", limit=10)
+
+# Log completed work
+mcp__worklog__log_entry(
+    title="Deployed API",
+    task_type="deployment",
+    outcome="Success"
+)
+```
+
+### MCP Server Development
+
+The MCP server source is in `mcp/`:
+
+```bash
+cd plugins/worklog/mcp
+pip install -e ".[dev]"     # Install
+python -m worklog_mcp       # Run directly
+pytest -v                   # Run tests
+```
+
 ## Database Schema
 
 ### Core Tables (6)
@@ -481,6 +547,16 @@ worklog/
 ├── worklog-viewer/
 │   ├── index.html
 │   └── README.md
+├── mcp/                      # MCP server (v1.4.0+)
+│   ├── src/worklog_mcp/
+│   │   ├── __init__.py
+│   │   ├── __main__.py
+│   │   ├── config.py
+│   │   └── server.py
+│   ├── tests/
+│   ├── pyproject.toml
+│   └── README.md
+├── .mcp.json                 # MCP server config
 └── README.md
 ```
 
@@ -504,6 +580,12 @@ chmod 775 /path/to/db/directory
 ```
 
 ## Version History
+
+### 1.4.0
+- **MCP Server**: Added FastMCP-based MCP server for programmatic database access
+- **11 MCP Tools**: query_table, search_knowledge, recall_context, store_memory, update_memory, log_entry, store_knowledge, get_knowledge_entry, get_memory, list_tables, get_recent_entries
+- **Dual Access**: Skills for guided workflows, MCP for automation
+- **Auto-Detection**: Database path auto-detected by hostname
 
 ### 1.3.0
 - **Progressive Disclosure (SessionStart)**: Index-first injection reduces context bloat by 60-70%

@@ -1,7 +1,7 @@
 {
   "name": "worklog",
-  "version": "1.3.0",
-  "description": "Cross-session knowledge persistence with SQLite. Store learnings, recall context, and maintain continuity across Claude Code sessions. Includes automatic context loading and learning capture via hooks.",
+  "version": "1.4.0",
+  "description": "Cross-session knowledge persistence with SQLite. Store learnings, recall context, and maintain continuity across Claude Code sessions. Includes MCP server for programmatic access, skills for guided workflows, and hooks for automation.",
   "author": {
     "name": "gs"
   },
@@ -17,6 +17,8 @@
     "context",
     "learning",
     "hooks",
-    "automation"
+    "automation",
+    "mcp",
+    "mcp-server"
   ]
 }

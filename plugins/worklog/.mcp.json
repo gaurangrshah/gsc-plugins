@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "worklog": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "worklog_mcp"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}/mcp",
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/mcp/src"
+      }
+    }
+  }
+}
