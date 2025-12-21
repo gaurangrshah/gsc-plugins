@@ -134,15 +134,60 @@ Create `.tasks/tags/master/tasks.json`:
 }
 ```
 
-### Step 6: Gitea Auto-Detection
+### Step 6: Issue Tracker Auto-Detection
 
-**Check if Gitea is available:**
+Detect available issue tracking systems in priority order:
 
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Issue Tracker Detection                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ Priority order:                                                 │
+│   1. Gitea (config file OR repo remote)                         │
+│   2. GitHub (if repo has github.com remote + gh CLI auth'd)     │
+│   3. Local only (TaskFlow JSON files)                           │
+│                                                                 │
+│ IMPORTANT: TodoWrite is ALWAYS mandatory alongside any          │
+│ issue tracker. Tasks sync to both for redundancy.               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Step 6a: Check Gitea (dual approach)**
+
+**Method B: Check for local config file**
 ```bash
-# Try to reach Gitea API via ubuntu-mini
-ssh -o ConnectTimeout=3 ubuntu-mini 'source ~/.config/gitea/credentials 2>/dev/null && \
-  curl -s --max-time 3 "${GITEA_URL}/api/v1/version" \
-  -H "Authorization: token ${GITEA_TOKEN}" 2>/dev/null | jq -r .version' 2>/dev/null
+# Check for Gitea config in standard locations
+GITEA_CONFIG=""
+if [ -f ".gitea-config" ]; then
+  GITEA_CONFIG=".gitea-config"
+elif [ -f "$HOME/.config/gitea/credentials" ]; then
+  GITEA_CONFIG="$HOME/.config/gitea/credentials"
+elif [ -n "$GITEA_URL" ] && [ -n "$GITEA_TOKEN" ]; then
+  GITEA_CONFIG="env"
+fi
+```
+
+**Method C: Check if repo has Gitea remote**
+```bash
+# Check if current repo has a Gitea remote
+GITEA_REMOTE=$(git remote -v 2>/dev/null | grep -E "git\.internal\.muhaha\.dev|gitea" | head -1)
+if [ -n "$GITEA_REMOTE" ]; then
+  echo "Gitea remote detected: $GITEA_REMOTE"
+fi
+```
+
+**Combined check:**
+```bash
+# Gitea is available if EITHER config exists OR repo has Gitea remote
+if [ -n "$GITEA_CONFIG" ] || [ -n "$GITEA_REMOTE" ]; then
+  # Verify API is reachable
+  if ssh -o ConnectTimeout=3 ubuntu-mini 'source ~/.config/gitea/credentials 2>/dev/null && \
+    curl -s --max-time 3 "${GITEA_URL}/api/v1/version" -H "Authorization: token ${GITEA_TOKEN}"' 2>/dev/null | grep -q version; then
+    echo "Gitea available and API reachable"
+  fi
+fi
 ```
 
 **If Gitea is reachable:**
@@ -161,24 +206,66 @@ ssh -o ConnectTimeout=3 ubuntu-mini 'source ~/.config/gitea/credentials 2>/dev/n
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │ [Y]es - Enable Gitea sync                                       │
+│ [N]o  - Check for other options                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Step 6b: Check GitHub (fallback)**
+
+If Gitea unavailable or user declined, check for GitHub:
+
+```bash
+# Check if repo has GitHub remote and gh CLI is authenticated
+if git remote -v 2>/dev/null | grep -q "github.com"; then
+  if gh auth status &>/dev/null; then
+    # Get repo info
+    GITHUB_REPO=$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')
+    echo "GitHub available: $GITHUB_REPO"
+  fi
+fi
+```
+
+**If GitHub is available:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ GitHub detected: owner/repo-name                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ Enable GitHub Issues sync for this project?                     │
+│                                                                 │
+│ This will:                                                      │
+│   • Create GitHub issues when you run /task-parse               │
+│   • Sync task status changes via gh CLI                         │
+│   • View issues at: https://github.com/owner/repo/issues        │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ [Y]es - Enable GitHub sync                                      │
 │ [N]o  - Local TaskFlow only                                     │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**If Gitea is NOT reachable:**
+**Step 6c: Local fallback**
+
+If neither Gitea nor GitHub available (or user declined both):
 ```
-Note: Gitea sync not available (ubuntu-mini unreachable or Gitea offline)
+Note: No issue tracker integration available.
+      • Gitea: unreachable
+      • GitHub: no remote or gh CLI not authenticated
+
       Continuing with local TaskFlow only.
-      Run /task-sync later to enable Gitea integration.
+      Run /task-sync later to enable integration.
 ```
 
-**Store Gitea config if enabled:**
+**Store issue tracker config:**
 
-Update `.tasks/config.json`:
+Update `.tasks/config.json` based on selection:
+
+**If Gitea enabled:**
 ```json
 {
   "projectName": "<project-name>",
-  "gitea": {
+  "issueTracker": {
+    "type": "gitea",
     "enabled": true,
     "repo": "gs/tasks",
     "autoSync": true,
@@ -187,11 +274,26 @@ Update `.tasks/config.json`:
 }
 ```
 
-If user declines or Gitea unavailable:
+**If GitHub enabled:**
 ```json
 {
   "projectName": "<project-name>",
-  "gitea": {
+  "issueTracker": {
+    "type": "github",
+    "enabled": true,
+    "repo": "owner/repo-name",
+    "autoSync": true,
+    "labelPrefix": "<project-slug>"
+  }
+}
+```
+
+**If no tracker (local only):**
+```json
+{
+  "projectName": "<project-name>",
+  "issueTracker": {
+    "type": "local",
     "enabled": false
   }
 }
@@ -205,21 +307,38 @@ Create `.tasks/config.json`:
 {
   "projectName": "<project-name>",
   "checkpoints": ["parse", "execute", "complete"],
-  "syncTodoWrite": true,
-  "gitea": {
+  "todoWrite": {
+    "required": true,
+    "syncWithTracker": true
+  },
+  "issueTracker": {
+    "type": "gitea|github|local",
     "enabled": true|false,
-    "repo": "gs/tasks",
+    "repo": "<repo-path>",
     "autoSync": true,
     "labelPrefix": "<project-slug>"
   }
 }
 ```
 
-**Gitea config fields:**
-- `enabled`: Whether Gitea sync is active
-- `repo`: Target Gitea repository (default: gs/tasks)
-- `autoSync`: Auto-push to Gitea after /task-parse and status changes
-- `labelPrefix`: Prefix for Gitea labels to group project tasks
+**TodoWrite config (MANDATORY):**
+- `required`: Always `true` - TodoWrite must be used for all TaskFlow projects
+- `syncWithTracker`: When true, task status changes update both TodoWrite AND issue tracker
+
+**Issue tracker config fields:**
+- `type`: Issue tracker type ("gitea", "github", or "local")
+- `enabled`: Whether external sync is active
+- `repo`: Target repository (format depends on type)
+  - Gitea: "owner/repo" (e.g., "gs/tasks")
+  - GitHub: "owner/repo" (e.g., "gaurangrshah/my-project")
+- `autoSync`: Auto-push after /task-parse and status changes
+- `labelPrefix`: Prefix for labels to group project tasks
+
+**Why TodoWrite is mandatory:**
+1. **Immediate visibility** - See tasks in current Claude Code session
+2. **Redundancy** - If issue tracker is down, work continues
+3. **Session context** - TodoWrite persists across tool calls
+4. **Consistency** - Same workflow regardless of issue tracker
 
 ### Step 8: Update Central Index
 

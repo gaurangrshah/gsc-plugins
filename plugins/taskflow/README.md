@@ -2,7 +2,7 @@
 
 A Claude Code plugin for transforming Product Requirements Documents (PRDs) into structured, dependency-aware tasks with human-in-the-loop checkpoints.
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 ## Overview
 
@@ -297,6 +297,14 @@ taskflow/
 | Checkpoints | Human-in-the-loop | Quality over speed |
 
 ## Version History
+
+### 1.1.0
+- **Issue tracker auto-detection**: Auto-detects Gitea and GitHub during `/task-init`
+- **Dual Gitea detection**: Checks both config files AND git remotes for Gitea availability
+- **GitHub fallback**: Falls back to GitHub Issues via `gh` CLI if Gitea unavailable
+- **Mandatory TodoWrite**: TodoWrite is now required for all TaskFlow projects (dual-write for redundancy)
+- **Enhanced config**: New `issueTracker` and `todoWrite` config sections
+- **Graceful fallbacks**: Works 100% locally if no issue trackers available
 
 ### 1.0.0
 - Initial plugin release

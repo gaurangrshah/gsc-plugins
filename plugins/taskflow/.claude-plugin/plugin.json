@@ -1,7 +1,7 @@
 {
   "name": "taskflow",
-  "version": "1.0.0",
-  "description": "AI-powered task management system. Transform PRDs into structured, dependency-aware tasks with human-in-the-loop checkpoints.",
+  "version": "1.1.0",
+  "description": "AI-powered task management system. Transform PRDs into structured, dependency-aware tasks with issue tracker integration (Gitea/GitHub) and mandatory TodoWrite.",
   "author": {
     "name": "gs"
   },
@@ -15,6 +15,9 @@
     "workflow",
     "productivity",
     "checkpoints",
-    "dependencies"
+    "dependencies",
+    "gitea",
+    "github",
+    "issue-tracking"
   ]
 }
