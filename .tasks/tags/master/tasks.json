@@ -95,6 +95,62 @@
       "estimatedEffort": "low",
       "created": "2024-12-16T12:00:00Z",
       "updated": "2024-12-16T12:00:00Z"
+    },
+    {
+      "id": 6,
+      "title": "Add Gitea auto-detection to task-init",
+      "description": "Update task-init.md to auto-detect Gitea availability via SSH to ubuntu-mini, prompt to enable sync, graceful fallback if unavailable.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [],
+      "subtasks": [],
+      "acceptanceCriteria": [
+        "Gitea detection via SSH with 3s timeout",
+        "Prompt user to enable sync if detected",
+        "Store gitea config in .tasks/config.json",
+        "Graceful fallback message if unavailable",
+        "--gitea and --no-gitea flags for explicit control"
+      ],
+      "estimatedEffort": "medium",
+      "created": "2024-12-21T15:00:00Z",
+      "updated": "2024-12-21T15:00:00Z"
+    },
+    {
+      "id": 7,
+      "title": "Add fleet-status skill to gsc-plugins",
+      "description": "Port fleet-status skill from atlas dotfiles to gsc-plugins. Cross-machine overview with DB + SSH verification + Gitea integration.",
+      "status": "pending",
+      "priority": "medium",
+      "dependencies": [6],
+      "subtasks": [],
+      "acceptanceCriteria": [
+        "Skill queries worklog.db for recent entries",
+        "Skill queries Gitea for open/closed issues",
+        "SSH verification to fleet machines",
+        "Reconciliation report comparing DB vs reality",
+        "--track flag creates Gitea issues for findings"
+      ],
+      "estimatedEffort": "medium",
+      "created": "2024-12-21T15:00:00Z",
+      "updated": "2024-12-21T15:00:00Z"
+    },
+    {
+      "id": 8,
+      "title": "Sync gsc-plugins to ubuntu-mini",
+      "description": "Push updated gsc-plugins to GitHub, pull on ubuntu-mini to get task-init Gitea integration and fleet-status skill.",
+      "status": "pending",
+      "priority": "high",
+      "dependencies": [6, 7],
+      "subtasks": [],
+      "acceptanceCriteria": [
+        "Changes committed with clear message",
+        "Pushed to GitHub origin/main",
+        "Pulled on ubuntu-mini",
+        "Verified task-init --gitea works on ubuntu-mini"
+      ],
+      "estimatedEffort": "low",
+      "created": "2024-12-21T15:00:00Z",
+      "updated": "2024-12-21T15:00:00Z"
     }
   ]
 }

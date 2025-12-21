@@ -1,0 +1,11 @@
+{
+  "projectName": "gsc-plugins",
+  "checkpoints": ["parse", "execute", "complete"],
+  "syncTodoWrite": true,
+  "gitea": {
+    "enabled": true,
+    "repo": "gs/tasks",
+    "autoSync": true,
+    "labelPrefix": "gsc-plugins"
+  }
+}

@@ -8,17 +8,20 @@ Initialize the TaskFlow task management system in the current project directory.
 
 ## What This Command Does
 
-1. Detect current environment (system hostname or default)
+1. Detect current environment (atlas, dev-vm, or default)
 2. Create `.tasks/` directory structure with tag support
 3. Create `master` tag with empty `tasks.json`
 4. Create `state.json` to track current tag
-5. Register project in central index (if index path configured)
+5. **Auto-detect Gitea** and offer to enable sync (graceful fallback if unavailable)
+6. Register project in central index (if index path configured)
 
 ## Arguments
 
 - `[project-name]` - Optional project name (defaults to directory name)
 - `--no-index` - Skip registering in central index
 - `--tag=<name>` - Create with initial tag other than `master`
+- `--no-gitea` - Skip Gitea auto-detection (local only)
+- `--gitea` - Enable Gitea sync without prompting (assumes available)
 
 ## Prerequisites
 
@@ -131,21 +134,94 @@ Create `.tasks/tags/master/tasks.json`:
 }
 ```
 
-### Step 6: Create Project Config (Optional)
+### Step 6: Gitea Auto-Detection
 
-Create `.tasks/config.json` only if overrides needed:
+**Check if Gitea is available:**
+
+```bash
+# Try to reach Gitea API via ubuntu-mini
+ssh -o ConnectTimeout=3 ubuntu-mini 'source ~/.config/gitea/credentials 2>/dev/null && \
+  curl -s --max-time 3 "${GITEA_URL}/api/v1/version" \
+  -H "Authorization: token ${GITEA_TOKEN}" 2>/dev/null | jq -r .version' 2>/dev/null
+```
+
+**If Gitea is reachable:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Gitea detected at git.internal.muhaha.dev                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│ Enable Gitea sync for this project?                             │
+│                                                                 │
+│ This will:                                                      │
+│   • Create issues in gs/tasks when you run /task-parse          │
+│   • Sync task status changes to Gitea kanban                    │
+│   • Allow visual task management at:                            │
+│     http://git.internal.muhaha.dev/gs/tasks/projects            │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ [Y]es - Enable Gitea sync                                       │
+│ [N]o  - Local TaskFlow only                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**If Gitea is NOT reachable:**
+```
+Note: Gitea sync not available (ubuntu-mini unreachable or Gitea offline)
+      Continuing with local TaskFlow only.
+      Run /task-sync later to enable Gitea integration.
+```
+
+**Store Gitea config if enabled:**
+
+Update `.tasks/config.json`:
+```json
+{
+  "projectName": "<project-name>",
+  "gitea": {
+    "enabled": true,
+    "repo": "gs/tasks",
+    "autoSync": true,
+    "labelPrefix": "<project-slug>"
+  }
+}
+```
+
+If user declines or Gitea unavailable:
+```json
+{
+  "projectName": "<project-name>",
+  "gitea": {
+    "enabled": false
+  }
+}
+```
+
+### Step 7: Create Project Config
+
+Create `.tasks/config.json`:
 
 ```json
 {
   "projectName": "<project-name>",
   "checkpoints": ["parse", "execute", "complete"],
-  "syncTodoWrite": true
+  "syncTodoWrite": true,
+  "gitea": {
+    "enabled": true|false,
+    "repo": "gs/tasks",
+    "autoSync": true,
+    "labelPrefix": "<project-slug>"
+  }
 }
 ```
 
-*Skip this file if using all defaults - less clutter.*
+**Gitea config fields:**
+- `enabled`: Whether Gitea sync is active
+- `repo`: Target Gitea repository (default: gs/tasks)
+- `autoSync`: Auto-push to Gitea after /task-parse and status changes
+- `labelPrefix`: Prefix for Gitea labels to group project tasks
 
-### Step 7: Update Central Index
+### Step 8: Update Central Index
 
 If index path is configured for environment:
 
@@ -188,17 +264,42 @@ If index file doesn't exist, create it:
 - If index file is corrupted: warn, backup, create fresh
 - If no write permission: warn and skip
 
-### Step 8: Confirm Success
+### Step 9: Confirm Success
 
+**With Gitea enabled:**
 ```
 TaskFlow initialized in: /home/gs/workspace/projects/my-project
 
 Structure created:
   .tasks/
+  ├── config.json (gitea: enabled)
   ├── state.json (tracking: master tag)
   └── tags/master/tasks.json
 
 Registered in: ~/workspace/.task-index.json
+Gitea sync: enabled → gs/tasks (auto-sync on)
+Kanban: http://git.internal.muhaha.dev/gs/tasks/projects
+
+Next steps:
+  1. Create a PRD document in docs/PRD/
+  2. Run /task-parse docs/PRD/your-feature.md
+     (Tasks will auto-sync to Gitea)
+
+Or run /task to see status overview.
+```
+
+**Without Gitea (local only):**
+```
+TaskFlow initialized in: /home/gs/workspace/projects/my-project
+
+Structure created:
+  .tasks/
+  ├── config.json (gitea: disabled)
+  ├── state.json (tracking: master tag)
+  └── tags/master/tasks.json
+
+Registered in: ~/workspace/.task-index.json
+Gitea sync: disabled (run /task-sync to enable later)
 
 Next steps:
   1. Create a PRD document in docs/PRD/
@@ -276,7 +377,7 @@ Try: sudo chown $USER:$USER /path/to/project
 ## Examples
 
 ```bash
-# Initialize in current directory
+# Initialize in current directory (auto-detects Gitea)
 /task-init
 
 # Initialize with specific project name
@@ -287,11 +388,19 @@ Try: sudo chown $USER:$USER /path/to/project
 
 # Initialize with custom initial tag
 /task-init --tag=phase-1
+
+# Initialize with Gitea sync enabled (skip detection prompt)
+/task-init --gitea
+
+# Initialize local-only, skip Gitea detection entirely
+/task-init --no-gitea
 ```
 
 ## Related
 
 - Command: /task-parse (next step after init)
 - Command: /task-tag (manage tags)
+- Command: /task-sync (manual Gitea sync)
 - Design: ~/.claude/knowledge/guides/taskflow-design.md
 - Config: ~/.claude/task-config.json
+- Gitea: http://git.internal.muhaha.dev/gs/tasks/projects
