@@ -361,8 +361,8 @@ The setup scripts check for Python in this order:
 | Priority | Source | Why |
 |----------|--------|-----|
 | 1 | pyenv | Respects explicit user choice |
-| 2 | mise | Modern polyglot version manager |
-| 3 | Homebrew (macOS) | Avoids ancient system Python (3.9.6) |
+| 2 | Homebrew (macOS) | Platform standard, very common |
+| 3 | mise | Polyglot version manager |
 | 4 | System Python | Last resort if ≥3.10 |
 
 If no suitable Python is found, you'll get platform-specific recommendations:

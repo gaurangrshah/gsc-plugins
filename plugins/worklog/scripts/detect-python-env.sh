@@ -84,7 +84,11 @@ detect_python() {
     PYTHON_OK="no"
     PYTHON_RECOMMENDATION=""
 
-    # Detection order: pyenv > mise > brew (macOS) > system
+    # Detection order:
+    # - pyenv first (explicit Python version manager - user made deliberate choice)
+    # - Homebrew on macOS (platform standard, very common)
+    # - mise (newer polyglot manager)
+    # - system Python (last resort)
 
     # 1. Check pyenv first (respects user's explicit choice)
     if command -v pyenv &>/dev/null; then
@@ -99,31 +103,7 @@ detect_python() {
         fi
     fi
 
-    # 2. Check mise
-    if command -v mise &>/dev/null || [[ -x /opt/homebrew/bin/mise ]] || [[ -x ~/.local/bin/mise ]]; then
-        local mise_cmd
-        if command -v mise &>/dev/null; then
-            mise_cmd="mise"
-        elif [[ -x /opt/homebrew/bin/mise ]]; then
-            mise_cmd="/opt/homebrew/bin/mise"
-        elif [[ -x ~/.local/bin/mise ]]; then
-            mise_cmd="$HOME/.local/bin/mise"
-        fi
-
-        if [[ -n "$mise_cmd" ]]; then
-            local mise_python
-            mise_python=$($mise_cmd which python3 2>/dev/null)
-            if [[ -n "$mise_python" ]] && check_python "$mise_python" "mise"; then
-                return 0
-            fi
-            # mise exists but no suitable version
-            if [[ "$PYTHON_OK" != "yes" && -z "$PYTHON_RECOMMENDATION" ]]; then
-                PYTHON_RECOMMENDATION="mise use python@3.12"
-            fi
-        fi
-    fi
-
-    # 3. Check Homebrew (macOS only)
+    # 2. Check Homebrew (macOS only) - platform standard, very common
     if [[ "$os_type" == "macos" ]]; then
         local brew_prefix
         if [[ -x /opt/homebrew/bin/brew ]]; then
@@ -147,6 +127,30 @@ detect_python() {
             # Homebrew exists but no suitable Python
             if [[ "$PYTHON_OK" != "yes" && -z "$PYTHON_RECOMMENDATION" ]]; then
                 PYTHON_RECOMMENDATION="brew install python@3.12"
+            fi
+        fi
+    fi
+
+    # 3. Check mise (polyglot version manager)
+    if command -v mise &>/dev/null || [[ -x /opt/homebrew/bin/mise ]] || [[ -x ~/.local/bin/mise ]]; then
+        local mise_cmd
+        if command -v mise &>/dev/null; then
+            mise_cmd="mise"
+        elif [[ -x /opt/homebrew/bin/mise ]]; then
+            mise_cmd="/opt/homebrew/bin/mise"
+        elif [[ -x ~/.local/bin/mise ]]; then
+            mise_cmd="$HOME/.local/bin/mise"
+        fi
+
+        if [[ -n "$mise_cmd" ]]; then
+            local mise_python
+            mise_python=$($mise_cmd which python3 2>/dev/null)
+            if [[ -n "$mise_python" ]] && check_python "$mise_python" "mise"; then
+                return 0
+            fi
+            # mise exists but no suitable version
+            if [[ "$PYTHON_OK" != "yes" && -z "$PYTHON_RECOMMENDATION" ]]; then
+                PYTHON_RECOMMENDATION="mise use python@3.12"
             fi
         fi
     fi
