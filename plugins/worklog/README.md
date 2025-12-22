@@ -2,7 +2,7 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions using SQLite.
 
-**Version:** 1.4.0
+**Version:** 1.5.0
 
 ## Overview
 
@@ -292,6 +292,7 @@ Observations are stored to `memories` table with `status='staging'` for review a
 | `/worklog-init` | Initialize database (primary system) |
 | `/worklog-connect <path>` | Connect to shared database (secondary) |
 | `/worklog-configure` | Change profile or settings |
+| `/worklog-setup-mcp` | Set up Python environment for MCP server |
 | `/worklog-status` | Check connectivity and stats |
 
 ## Skills
@@ -308,20 +309,73 @@ Observations are stored to `memories` table with `status='staging'` for review a
 
 ### MCP Server Setup
 
-The MCP server requires Python 3.11+ and must be installed separately:
+The MCP server requires Python 3.10+ and includes cross-platform setup scripts.
+
+**Option A: Use the Setup Command (Recommended)**
+
+Run in Claude Code:
+```
+/worklog-setup-mcp
+```
+
+This command:
+1. Detects Python using intelligent priority (pyenv → mise → Homebrew → system)
+2. Creates an isolated virtual environment
+3. Installs MCP dependencies
+4. Configures `.mcp.json` automatically
+
+**Option B: Run Setup Script Directly**
 
 ```bash
-# Navigate to the MCP server directory (adjust path based on installation method)
-# Marketplace:
+# Navigate to plugin directory
+cd /path/to/gsc-plugins/plugins/worklog
+
+# Run the setup script
+./scripts/setup-mcp-venv.sh
+
+# For custom venv location:
+./scripts/setup-mcp-venv.sh --venv-path ~/.local/share/worklog-mcp-venv
+```
+
+**Option C: Manual Installation**
+
+```bash
+# Navigate to the MCP server directory
 cd ~/.claude/plugins/marketplaces/gsc-plugins/worklog/mcp
-# OR Manual/Local:
-cd ~/.claude/plugins/local-plugins/worklog/mcp
+
+# Create venv with your preferred Python 3.10+
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install the package
 pip install -e .
 
 # Verify installation
 python -m worklog_mcp --help
+```
+
+### Python Detection Priority
+
+The setup scripts check for Python in this order:
+
+| Priority | Source | Why |
+|----------|--------|-----|
+| 1 | pyenv | Respects explicit user choice |
+| 2 | mise | Modern polyglot version manager |
+| 3 | Homebrew (macOS) | Avoids ancient system Python (3.9.6) |
+| 4 | System Python | Last resort if ≥3.10 |
+
+If no suitable Python is found, you'll get platform-specific recommendations:
+- **macOS:** `brew install python@3.12`
+- **Linux (apt):** `sudo apt-get install python3.12 python3.12-venv`
+- **Linux (other):** `mise use python@3.12`
+
+### Verify MCP Server
+
+After setup, restart Claude Code and verify:
+```bash
+claude mcp list
+# Should show: worklog (11 tools)
 ```
 
 Once installed, Claude Code automatically detects the MCP server via the plugin's `.mcp.json` configuration.
@@ -561,6 +615,7 @@ worklog/
 │   ├── worklog-init.md
 │   ├── worklog-connect.md
 │   ├── worklog-configure.md
+│   ├── worklog-setup-mcp.md  # Cross-platform MCP setup (v1.5.0+)
 │   └── worklog-status.md
 ├── hooks/
 │   ├── session-start.md      # Auto-load context (progressive disclosure)
@@ -570,6 +625,9 @@ worklog/
 │   ├── memory-store/skill.md
 │   ├── memory-recall/skill.md
 │   └── memory-sync/skill.md
+├── scripts/                  # Setup utilities (v1.5.0+)
+│   ├── detect-python-env.sh  # Cross-platform Python detection
+│   └── setup-mcp-venv.sh     # Automated venv creation
 ├── schema/
 │   ├── core.sql
 │   └── extended.sql
@@ -615,6 +673,13 @@ chmod 775 /path/to/db/directory
 ```
 
 ## Version History
+
+### 1.5.0
+- **Cross-Platform Python Detection**: New `detect-python-env.sh` script with intelligent priority (pyenv → mise → Homebrew → system)
+- **Automated MCP Setup**: New `/worklog-setup-mcp` command and `setup-mcp-venv.sh` script
+- **Platform-Aware Recommendations**: Suggests appropriate Python installation method per platform
+- **Lower Python Requirement**: Now requires Python 3.10+ (was 3.11+)
+- **Scripts Directory**: New `scripts/` folder for setup utilities
 
 ### 1.4.0
 - **MCP Server**: Added FastMCP-based MCP server for programmatic database access
