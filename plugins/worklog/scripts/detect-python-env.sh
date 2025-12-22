@@ -113,14 +113,15 @@ detect_python() {
         fi
 
         if [[ -n "$brew_prefix" ]]; then
-            # Check for python@3.12 or python@3.11 first
+            # Check for python@3.12 or python@3.11 first (Homebrew uses versioned names)
             for ver in 3.12 3.11 3.10; do
-                local brew_python="$brew_prefix/opt/python@$ver/bin/python3"
+                # Homebrew python binary is named python3.X, not python3
+                local brew_python="$brew_prefix/opt/python@$ver/bin/python$ver"
                 if check_python "$brew_python" "brew"; then
                     return 0
                 fi
             done
-            # Check generic brew python3
+            # Check generic brew python3 (if user ran `brew install python3`)
             if check_python "$brew_prefix/bin/python3" "brew"; then
                 return 0
             fi
