@@ -8,7 +8,7 @@ A collection of Claude Code plugins for enhanced development workflows.
 |--------|---------|-------------|
 | [webgen](plugins/webgen/) | 1.6.0 | Natural language to production-ready websites and landing pages |
 | [appgen](plugins/appgen/) | 1.1.0 | Full-stack applications and APIs from natural language |
-| [worklog](plugins/worklog/) | 1.4.0 | Cross-session knowledge persistence with SQLite |
+| [worklog](plugins/worklog/) | 1.6.0 | Cross-session knowledge persistence (SQLite/PostgreSQL) |
 | [taskflow](plugins/taskflow/) | 1.1.0 | AI-powered task management with issue tracker integration |
 | [docs](plugins/docs/) | 1.0.0 | Documentation management and quality assurance |
 
@@ -266,23 +266,24 @@ Generate full-stack applications and APIs from natural language descriptions.
 
 ### Worklog
 
-Cross-session knowledge persistence using SQLite. Maintain context, learnings, and work history across Claude Code sessions.
+Cross-session knowledge persistence with dual database backend support. Maintain context, learnings, and work history across Claude Code sessions.
 
 **Features:**
+- **Dual backend support:** SQLite (default, zero dependencies) or PostgreSQL (optional, for teams)
 - 3 profile levels (minimal, standard, full)
 - Memory store/recall/sync skills
-- **MCP server for programmatic database access** (v1.4.0)
+- **MCP server for programmatic database access** (v1.4.0+)
 - Session hooks for automatic context loading and learning capture
 - Multi-system support with shared databases
 - Error pattern tracking
-- Network retry logic for shared databases
+- Auto-detection of backend from environment variables
 
 **Quick Start:**
 ```
 /worklog-init
 ```
 
-**Dependencies:** SQLite 3.0+, Python 3.11+ (for MCP server)
+**Dependencies:** None required (SQLite built-in). Optional: PostgreSQL server, Python 3.10+ (for MCP server)
 
 [Full documentation →](plugins/worklog/README.md)
 
@@ -379,7 +380,7 @@ When plugins are installed together, they detect and offer integrations:
 │        ▼                    ▼                                    │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  Worklog │         │  Worklog │  Progressive disclosure +   │
-│   │  v1.3.0  │         │  v1.3.0  │  AI compression             │
+│   │  v1.6.0  │         │  v1.6.0  │  AI compression             │
 │   └──────────┘         └──────────┘                             │
 │                                                                  │
 │   ┌──────────┐         ┌──────────┐                             │
@@ -391,7 +392,7 @@ When plugins are installed together, they detect and offer integrations:
 │        ▼                    ▼                                    │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  Worklog │         │  Worklog │  Progressive disclosure +   │
-│   │  v1.3.0  │         │  v1.3.0  │  AI compression             │
+│   │  v1.6.0  │         │  v1.6.0  │  AI compression             │
 │   └──────────┘         └──────────┘                             │
 │                                                                  │
 │   Legend:                                                        │
@@ -478,7 +479,7 @@ Each plugin uses separate storage—no conflicts possible:
 | WebGen | `{WEBGEN_OUTPUT_DIR}/` | Project folders |
 | AppGen | `{APPGEN_OUTPUT_DIR}/` | Project folders |
 | TaskFlow | `.tasks/` (per project) | JSON files |
-| Worklog | `worklog.db` (global) | SQLite database |
+| Worklog | `worklog.db` or PostgreSQL (global) | SQLite/PostgreSQL |
 | Docs | `$DOCS_ROOT/`, `$KNOWLEDGE_BASE/` | Markdown files |
 
 ## Requirements
@@ -487,7 +488,7 @@ Each plugin uses separate storage—no conflicts possible:
 |--------|--------------|
 | webgen | Node.js 18+, pnpm 8+ (or npm/yarn) |
 | appgen | Node.js 18+, pnpm 8+, PostgreSQL (optional) |
-| worklog | SQLite 3.0+, Python 3.11+ (for MCP server) |
+| worklog | None (SQLite default). Optional: PostgreSQL, Python 3.10+ (MCP server) |
 | taskflow | None (pure Claude Code) |
 | docs | None (pure Claude Code) |
 

@@ -129,7 +129,7 @@ claude plugin install worklog@gsc-plugins --force
 |--------|---------|-----------|
 | **webgen** | Website generation | 5-checkpoint workflow |
 | **appgen** | Full-stack app generation | 8-phase workflow |
-| **worklog** | Cross-session persistence | SQLite DB, MCP server |
+| **worklog** | Cross-session persistence | SQLite/PostgreSQL, MCP server |
 | **taskflow** | Task management | PRD parsing, deps |
 | **docs** | Documentation management | Validation, reconciliation |
 
