@@ -1,43 +1,42 @@
 """Worklog MCP Server - Structured access to shared knowledge base.
 
-Provides tools for querying and storing data in the shared worklog.db database
-used across all Claude Code instances (atlas, m4-mini-work, ubuntu-mini).
+Provides tools for querying and storing data in the worklog database.
+Supports both SQLite (default) and PostgreSQL (optional) backends.
+
+Backend selection:
+- SQLite: Default, no configuration needed
+- PostgreSQL: Set DATABASE_URL or PGHOST environment variables
 """
 
-import json
-import aiosqlite
-from datetime import datetime
 from typing import Optional
 from fastmcp import FastMCP
 
 from worklog_mcp.config import (
-    get_database_path,
+    get_backend,
+    Backend,
     TABLES,
     MEMORY_TYPES,
     MEMORY_STATUSES,
     TASK_TYPES,
     KB_CATEGORIES,
 )
+from worklog_mcp.database import get_db, UniqueViolationError
 
 mcp = FastMCP(
     "worklog-mcp",
-    instructions="MCP server for structured access to the shared worklog knowledge base. "
+    instructions="MCP server for structured access to the worklog knowledge base. "
     "Use query_table for flexible queries, search_knowledge for full-text search, "
     "recall_context at task start to load relevant context, store_memory for facts, "
-    "and log_entry for work tracking.",
+    "and log_entry for work tracking. Supports SQLite (default) and PostgreSQL.",
 )
 
 
-def get_db() -> aiosqlite.Connection:
-    """Get database connection with row factory.
-
-    Returns an aiosqlite.Connection context manager. Use as:
-        async with get_db() as db:
-            ...
-    """
-    db_path = get_database_path()
-    conn = aiosqlite.connect(str(db_path))
-    return conn
+def _build_placeholders(count: int, backend: Backend) -> list[str]:
+    """Build list of placeholders for the given backend."""
+    if backend == Backend.SQLITE:
+        return ["?" for _ in range(count)]
+    else:
+        return [f"${i+1}" for i in range(count)]
 
 
 # =============================================================================
@@ -71,6 +70,7 @@ async def query_table(
         return {"error": f"Invalid table. Must be one of: {TABLES}"}
 
     limit = min(limit, 100)
+    db = await get_db()
 
     # Build query
     query = f"SELECT {columns} FROM {table}"
@@ -85,21 +85,16 @@ async def query_table(
 
     query += f" LIMIT {limit} OFFSET {offset}"
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        # Get total count
-        async with db.execute(count_query) as cursor:
-            count_row = await cursor.fetchone()
-            total = count_row["total"] if count_row else 0
+    # Get total count
+    count_row = await db.fetchone(count_query)
+    total = count_row["total"] if count_row else 0
 
-        # Get rows
-        async with db.execute(query) as cursor:
-            rows = await cursor.fetchall()
-            results = [dict(row) for row in rows]
+    # Get rows
+    rows = await db.fetchall(query)
 
     return {
-        "rows": results,
-        "count": len(results),
+        "rows": rows,
+        "count": len(rows),
         "total": total,
         "offset": offset,
         "limit": limit,
@@ -132,49 +127,66 @@ async def search_knowledge(
 
     results = {}
     search_term = f"%{query}%"
+    db = await get_db()
+    backend = get_backend()
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        for table in search_tables:
-            # Build search based on table schema
-            if table == "memories":
-                sql = """
-                    SELECT id, key, summary, memory_type, importance, tags, created_at
-                    FROM memories
-                    WHERE content LIKE ? OR summary LIKE ? OR key LIKE ? OR tags LIKE ?
-                    ORDER BY importance DESC, created_at DESC
-                    LIMIT ?
-                """
-            elif table == "knowledge_base":
-                sql = """
-                    SELECT id, category, title, tags, created_at, updated_at
-                    FROM knowledge_base
-                    WHERE title LIKE ? OR content LIKE ? OR tags LIKE ? OR category LIKE ?
-                    ORDER BY updated_at DESC
-                    LIMIT ?
-                """
-            elif table == "entries":
-                sql = """
-                    SELECT id, timestamp, agent, task_type, title, outcome, tags
-                    FROM entries
-                    WHERE title LIKE ? OR details LIKE ? OR outcome LIKE ? OR tags LIKE ?
-                    ORDER BY timestamp DESC
-                    LIMIT ?
-                """
-            elif table == "research":
-                sql = """
-                    SELECT id, source_type, title, summary, relevance_score, tags, status
-                    FROM research
-                    WHERE title LIKE ? OR summary LIKE ? OR key_points LIKE ? OR tags LIKE ?
-                    ORDER BY relevance_score DESC, created_at DESC
-                    LIMIT ?
-                """
-            else:
-                continue
+    for table in search_tables:
+        p1 = db.placeholder(1)
+        p2 = db.placeholder(2)
 
-            async with db.execute(sql, (search_term, search_term, search_term, search_term, limit)) as cursor:
-                rows = await cursor.fetchall()
-                results[table] = [dict(row) for row in rows]
+        if table == "memories":
+            like1 = db.ilike("content", p1)
+            like2 = db.ilike("summary", p1)
+            like3 = db.ilike("key", p1)
+            like4 = db.ilike("tags", p1)
+            sql = f"""
+                SELECT id, key, summary, memory_type, importance, tags, created_at
+                FROM memories
+                WHERE {like1} OR {like2} OR {like3} OR {like4}
+                ORDER BY importance DESC, created_at DESC
+                LIMIT {p2}
+            """
+        elif table == "knowledge_base":
+            like1 = db.ilike("title", p1)
+            like2 = db.ilike("content", p1)
+            like3 = db.ilike("tags", p1)
+            like4 = db.ilike("category", p1)
+            sql = f"""
+                SELECT id, category, title, tags, created_at, updated_at
+                FROM knowledge_base
+                WHERE {like1} OR {like2} OR {like3} OR {like4}
+                ORDER BY updated_at DESC
+                LIMIT {p2}
+            """
+        elif table == "entries":
+            like1 = db.ilike("title", p1)
+            like2 = db.ilike("details", p1)
+            like3 = db.ilike("outcome", p1)
+            like4 = db.ilike("tags", p1)
+            sql = f"""
+                SELECT id, timestamp, agent, task_type, title, outcome, tags
+                FROM entries
+                WHERE {like1} OR {like2} OR {like3} OR {like4}
+                ORDER BY timestamp DESC
+                LIMIT {p2}
+            """
+        elif table == "research":
+            like1 = db.ilike("title", p1)
+            like2 = db.ilike("summary", p1)
+            like3 = db.ilike("key_points", p1)
+            like4 = db.ilike("tags", p1)
+            sql = f"""
+                SELECT id, source_type, title, summary, relevance_score, tags, status
+                FROM research
+                WHERE {like1} OR {like2} OR {like3} OR {like4}
+                ORDER BY relevance_score DESC, created_at DESC
+                LIMIT {p2}
+            """
+        else:
+            continue
+
+        rows = await db.fetchall(sql, search_term, limit)
+        results[table] = rows
 
     return {
         "query": query,
@@ -217,51 +229,82 @@ async def recall_context(
         "recent_work": [],
     }
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        # Get relevant memories
-        type_placeholders = ",".join(["?" for _ in types])
+    db = await get_db()
+    backend = get_backend()
+
+    # Get relevant memories
+    p1, p2, p3, p4 = [db.placeholder(i) for i in range(1, 5)]
+
+    if backend == Backend.SQLITE:
+        # SQLite: Use IN clause with expanded values
+        type_placeholders = ", ".join(["?" for _ in types])
+        like1 = db.ilike("content", "?")
+        like2 = db.ilike("summary", "?")
+        like3 = db.ilike("key", "?")
+        like4 = db.ilike("tags", "?")
         memory_sql = f"""
             SELECT id, key, content, summary, memory_type, importance, tags, created_at
             FROM memories
             WHERE memory_type IN ({type_placeholders})
               AND importance >= ?
               AND status != 'archived'
-              AND (content LIKE ? OR summary LIKE ? OR key LIKE ? OR tags LIKE ?)
+              AND ({like1} OR {like2} OR {like3} OR {like4})
             ORDER BY importance DESC, last_accessed DESC
             LIMIT ?
         """
-        params = types + [min_importance, search_term, search_term, search_term, search_term, limit]
-
-        async with db.execute(memory_sql, params) as cursor:
-            rows = await cursor.fetchall()
-            results["memories"] = [dict(row) for row in rows]
-
-        # Get relevant knowledge base entries
-        kb_sql = """
-            SELECT id, category, title, content, tags, updated_at
-            FROM knowledge_base
-            WHERE title LIKE ? OR content LIKE ? OR tags LIKE ?
-            ORDER BY updated_at DESC
-            LIMIT ?
+        # Args: types..., min_importance, search_term x4, limit
+        args = (*types, min_importance, search_term, search_term, search_term, search_term, limit)
+        rows = await db.fetchall(memory_sql, *args)
+    else:
+        # PostgreSQL: Use ANY for array
+        like1 = db.ilike("content", "$3")
+        like2 = db.ilike("summary", "$3")
+        like3 = db.ilike("key", "$3")
+        like4 = db.ilike("tags", "$3")
+        memory_sql = f"""
+            SELECT id, key, content, summary, memory_type, importance, tags, created_at
+            FROM memories
+            WHERE memory_type = ANY($1::text[])
+              AND importance >= $2
+              AND status != 'archived'
+              AND ({like1} OR {like2} OR {like3} OR {like4})
+            ORDER BY importance DESC, last_accessed DESC
+            LIMIT $4
         """
-        async with db.execute(kb_sql, (search_term, search_term, search_term, limit // 2)) as cursor:
-            rows = await cursor.fetchall()
-            results["knowledge"] = [dict(row) for row in rows]
+        rows = await db.fetchall(memory_sql, types, min_importance, search_term, limit)
 
-        # Get recent work entries if requested
-        if include_recent:
-            recent_sql = """
-                SELECT id, timestamp, agent, task_type, title, outcome, tags
-                FROM entries
-                WHERE timestamp > datetime('now', '-7 days')
-                  AND (title LIKE ? OR tags LIKE ?)
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """
-            async with db.execute(recent_sql, (search_term, search_term, limit // 2)) as cursor:
-                rows = await cursor.fetchall()
-                results["recent_work"] = [dict(row) for row in rows]
+    results["memories"] = rows
+
+    # Get relevant knowledge base entries
+    p1, p2 = db.placeholder(1), db.placeholder(2)
+    like1 = db.ilike("title", p1)
+    like2 = db.ilike("content", p1)
+    like3 = db.ilike("tags", p1)
+    kb_sql = f"""
+        SELECT id, category, title, content, tags, updated_at
+        FROM knowledge_base
+        WHERE {like1} OR {like2} OR {like3}
+        ORDER BY updated_at DESC
+        LIMIT {p2}
+    """
+    rows = await db.fetchall(kb_sql, search_term, limit // 2)
+    results["knowledge"] = rows
+
+    # Get recent work entries if requested
+    if include_recent:
+        interval = db.interval_days(7)
+        like1 = db.ilike("title", p1)
+        like2 = db.ilike("tags", p1)
+        recent_sql = f"""
+            SELECT id, timestamp, agent, task_type, title, outcome, tags
+            FROM entries
+            WHERE timestamp > {interval}
+              AND ({like1} OR {like2})
+            ORDER BY timestamp DESC
+            LIMIT {p2}
+        """
+        rows = await db.fetchall(recent_sql, search_term, limit // 2)
+        results["recent_work"] = rows
 
     return results
 
@@ -276,15 +319,12 @@ async def get_knowledge_entry(id: int) -> dict:
     Returns:
         Full entry with all fields
     """
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM knowledge_base WHERE id = ?", (id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return {"entry": dict(row)}
-            return {"error": f"No knowledge base entry with id {id}"}
+    db = await get_db()
+    p1 = db.placeholder(1)
+    row = await db.fetchone(f"SELECT * FROM knowledge_base WHERE id = {p1}", id)
+    if row:
+        return {"entry": row}
+    return {"error": f"No knowledge base entry with id {id}"}
 
 
 @mcp.tool()
@@ -297,25 +337,22 @@ async def get_memory(key: str) -> dict:
     Returns:
         Full memory with all fields
     """
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        # Update access count and timestamp
-        await db.execute(
-            """UPDATE memories SET
-               access_count = access_count + 1,
-               last_accessed = CURRENT_TIMESTAMP
-               WHERE key = ?""",
-            (key,)
-        )
-        await db.commit()
+    db = await get_db()
+    p1 = db.placeholder(1)
 
-        async with db.execute(
-            "SELECT * FROM memories WHERE key = ?", (key,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return {"memory": dict(row)}
-            return {"error": f"No memory with key '{key}'"}
+    # Update access count and timestamp
+    await db.execute(
+        f"""UPDATE memories SET
+           access_count = access_count + 1,
+           last_accessed = CURRENT_TIMESTAMP
+           WHERE key = {p1}""",
+        key,
+    )
+
+    row = await db.fetchone(f"SELECT * FROM memories WHERE key = {p1}", key)
+    if row:
+        return {"memory": row}
+    return {"error": f"No memory with key '{key}'"}
 
 
 # =============================================================================
@@ -353,24 +390,29 @@ async def store_memory(
         return {"error": f"Invalid memory_type. Must be one of: {MEMORY_TYPES}"}
 
     importance = max(1, min(10, importance))
+    db = await get_db()
+    backend = get_backend()
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        try:
-            cursor = await db.execute(
-                """INSERT INTO memories
+    try:
+        if backend == Backend.SQLITE:
+            sql = """INSERT INTO memories
                    (key, content, summary, memory_type, importance, tags, source_agent, system)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (key, content, summary, memory_type, importance, tags, source_agent, system)
-            )
-            await db.commit()
-            return {
-                "success": True,
-                "id": cursor.lastrowid,
-                "key": key,
-            }
-        except aiosqlite.IntegrityError:
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
+            await db.execute(sql, key, content, summary, memory_type, importance, tags, source_agent, system)
+            # Get last inserted ID
+            row = await db.fetchone("SELECT last_insert_rowid() as id")
+            return {"success": True, "id": row["id"], "key": key}
+        else:
+            sql = """INSERT INTO memories
+                   (key, content, summary, memory_type, importance, tags, source_agent, system)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                   RETURNING id"""
+            row = await db.fetchone(sql, key, content, summary, memory_type, importance, tags, source_agent, system)
+            return {"success": True, "id": row["id"], "key": key}
+    except Exception as e:
+        if "UNIQUE constraint" in str(e) or "unique" in str(e).lower():
             return {"error": f"Memory with key '{key}' already exists. Use update_memory instead."}
+        raise
 
 
 @mcp.tool()
@@ -398,44 +440,74 @@ async def update_memory(
     if status and status not in MEMORY_STATUSES:
         return {"error": f"Invalid status. Must be one of: {MEMORY_STATUSES}"}
 
+    db = await get_db()
+    backend = get_backend()
+
     updates = []
     params = []
 
-    if content is not None:
-        updates.append("content = ?")
-        params.append(content)
-    if summary is not None:
-        updates.append("summary = ?")
-        params.append(summary)
-    if importance is not None:
-        updates.append("importance = ?")
-        params.append(max(1, min(10, importance)))
-    if tags is not None:
-        updates.append("tags = ?")
-        params.append(tags)
-    if status is not None:
-        updates.append("status = ?")
-        params.append(status)
-        if status == "promoted":
-            updates.append("promoted_at = CURRENT_TIMESTAMP")
+    if backend == Backend.SQLITE:
+        if content is not None:
+            updates.append("content = ?")
+            params.append(content)
+        if summary is not None:
+            updates.append("summary = ?")
+            params.append(summary)
+        if importance is not None:
+            updates.append("importance = ?")
+            params.append(max(1, min(10, importance)))
+        if tags is not None:
+            updates.append("tags = ?")
+            params.append(tags)
+        if status is not None:
+            updates.append("status = ?")
+            params.append(status)
+            if status == "promoted":
+                updates.append("promoted_at = CURRENT_TIMESTAMP")
 
-    if not updates:
-        return {"error": "No fields to update"}
+        if not updates:
+            return {"error": "No fields to update"}
 
-    params.append(key)
+        params.append(key)
+        sql = f"UPDATE memories SET {', '.join(updates)} WHERE key = ?"
+    else:
+        param_idx = 1
+        if content is not None:
+            updates.append(f"content = ${param_idx}")
+            params.append(content)
+            param_idx += 1
+        if summary is not None:
+            updates.append(f"summary = ${param_idx}")
+            params.append(summary)
+            param_idx += 1
+        if importance is not None:
+            updates.append(f"importance = ${param_idx}")
+            params.append(max(1, min(10, importance)))
+            param_idx += 1
+        if tags is not None:
+            updates.append(f"tags = ${param_idx}")
+            params.append(tags)
+            param_idx += 1
+        if status is not None:
+            updates.append(f"status = ${param_idx}")
+            params.append(status)
+            param_idx += 1
+            if status == "promoted":
+                updates.append("promoted_at = CURRENT_TIMESTAMP")
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            f"UPDATE memories SET {', '.join(updates)} WHERE key = ?",
-            params
-        )
-        await db.commit()
+        if not updates:
+            return {"error": "No fields to update"}
 
-        if cursor.rowcount == 0:
-            return {"error": f"No memory found with key '{key}'"}
+        params.append(key)
+        sql = f"UPDATE memories SET {', '.join(updates)} WHERE key = ${param_idx}"
 
-        return {"success": True, "key": key, "updated_fields": len(updates)}
+    result = await db.execute(sql, *params)
+
+    # Check if any rows were updated
+    if "0" in result or result.endswith(" 0"):
+        return {"error": f"No memory found with key '{key}'"}
+
+    return {"success": True, "key": key, "updated_fields": len([u for u in updates if "=" in u])}
 
 
 @mcp.tool()
@@ -467,20 +539,23 @@ async def log_entry(
     if task_type not in TASK_TYPES:
         return {"error": f"Invalid task_type. Must be one of: {TASK_TYPES}"}
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            """INSERT INTO entries
+    db = await get_db()
+    backend = get_backend()
+
+    if backend == Backend.SQLITE:
+        sql = """INSERT INTO entries
                (agent, task_type, title, details, decision_rationale, outcome, tags, related_files)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (agent, task_type, title, details, decision_rationale, outcome, tags, related_files)
-        )
-        await db.commit()
-        return {
-            "success": True,
-            "id": cursor.lastrowid,
-            "title": title,
-        }
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
+        await db.execute(sql, agent, task_type, title, details, decision_rationale, outcome, tags, related_files)
+        row = await db.fetchone("SELECT last_insert_rowid() as id")
+        return {"success": True, "id": row["id"], "title": title}
+    else:
+        sql = """INSERT INTO entries
+               (agent, task_type, title, details, decision_rationale, outcome, tags, related_files)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+               RETURNING id"""
+        row = await db.fetchone(sql, agent, task_type, title, details, decision_rationale, outcome, tags, related_files)
+        return {"success": True, "id": row["id"], "title": title}
 
 
 @mcp.tool()
@@ -510,23 +585,28 @@ async def store_knowledge(
     if category not in KB_CATEGORIES:
         return {"error": f"Invalid category. Must be one of: {KB_CATEGORIES}"}
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        try:
-            cursor = await db.execute(
-                """INSERT INTO knowledge_base
+    db = await get_db()
+    backend = get_backend()
+
+    try:
+        if backend == Backend.SQLITE:
+            sql = """INSERT INTO knowledge_base
                    (category, title, content, tags, source_agent, system, is_protocol)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (category, title, content, tags, source_agent, system, 1 if is_protocol else 0)
-            )
-            await db.commit()
-            return {
-                "success": True,
-                "id": cursor.lastrowid,
-                "title": title,
-            }
-        except aiosqlite.IntegrityError:
+                   VALUES (?, ?, ?, ?, ?, ?, ?)"""
+            await db.execute(sql, category, title, content, tags, source_agent, system, 1 if is_protocol else 0)
+            row = await db.fetchone("SELECT last_insert_rowid() as id")
+            return {"success": True, "id": row["id"], "title": title}
+        else:
+            sql = """INSERT INTO knowledge_base
+                   (category, title, content, tags, source_agent, system, is_protocol)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7)
+                   RETURNING id"""
+            row = await db.fetchone(sql, category, title, content, tags, source_agent, system, is_protocol)
+            return {"success": True, "id": row["id"], "title": title}
+    except Exception as e:
+        if "UNIQUE constraint" in str(e) or "unique" in str(e).lower():
             return {"error": f"Knowledge entry with category '{category}' and title '{title}' already exists."}
+        raise
 
 
 # =============================================================================
@@ -541,15 +621,14 @@ async def list_tables() -> dict:
     Returns:
         dict with table names and counts
     """
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        tables = {}
-        for table in TABLES:
-            async with db.execute(f"SELECT COUNT(*) as count FROM {table}") as cursor:
-                row = await cursor.fetchone()
-                tables[table] = row["count"] if row else 0
+    db = await get_db()
+    tables = {}
 
-    return {"tables": tables}
+    for table in TABLES:
+        row = await db.fetchone(f"SELECT COUNT(*) as count FROM {table}")
+        tables[table] = row["count"] if row else 0
+
+    return {"tables": tables, "backend": get_backend().value}
 
 
 @mcp.tool()
@@ -568,39 +647,54 @@ async def get_recent_entries(
     Returns:
         dict with recent entries
     """
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        if agent:
-            sql = """
-                SELECT id, timestamp, agent, task_type, title, outcome, tags
-                FROM entries
-                WHERE agent = ? AND timestamp > datetime('now', ?)
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """
-            params = (agent, f"-{days} days", limit)
-        else:
-            sql = """
-                SELECT id, timestamp, agent, task_type, title, outcome, tags
-                FROM entries
-                WHERE timestamp > datetime('now', ?)
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """
-            params = (f"-{days} days", limit)
+    db = await get_db()
+    backend = get_backend()
+    interval = db.interval_days(days)
 
-        async with db.execute(sql, params) as cursor:
-            rows = await cursor.fetchall()
-            return {
-                "entries": [dict(row) for row in rows],
-                "count": len(rows),
-                "days": days,
-            }
+    if agent:
+        p1, p2 = db.placeholder(1), db.placeholder(2)
+        sql = f"""
+            SELECT id, timestamp, agent, task_type, title, outcome, tags
+            FROM entries
+            WHERE agent = {p1} AND timestamp > {interval}
+            ORDER BY timestamp DESC
+            LIMIT {p2}
+        """
+        rows = await db.fetchall(sql, agent, limit)
+    else:
+        p1 = db.placeholder(1)
+        sql = f"""
+            SELECT id, timestamp, agent, task_type, title, outcome, tags
+            FROM entries
+            WHERE timestamp > {interval}
+            ORDER BY timestamp DESC
+            LIMIT {p1}
+        """
+        rows = await db.fetchall(sql, limit)
+
+    return {
+        "entries": rows,
+        "count": len(rows),
+        "days": days,
+    }
 
 
 # =============================================================================
 # AGENT CHAT TOOLS
 # =============================================================================
+
+
+def _detect_agent() -> str:
+    """Auto-detect agent name from hostname."""
+    import os
+    hostname = os.uname().nodename.lower()
+    if "atlas" in hostname:
+        return "alfred"
+    elif "m4" in hostname or "mac" in hostname:
+        return "macadmin"
+    elif "ubuntu" in hostname or "mini" in hostname:
+        return "jarvis"
+    return "unknown"
 
 
 @mcp.tool()
@@ -625,36 +719,32 @@ async def send_message(
     """
     from worklog_mcp.config import AGENTS, CHAT_PRIORITIES
 
-    # Validate target agent
     if to_agent not in AGENTS:
         return {"error": f"Invalid agent. Must be one of: {AGENTS}"}
 
     if priority not in CHAT_PRIORITIES:
         return {"error": f"Invalid priority. Must be one of: {CHAT_PRIORITIES}"}
 
-    # Auto-detect sender from hostname if not provided
     if not from_agent:
-        import os
-        hostname = os.uname().nodename.lower()
-        if "atlas" in hostname:
-            from_agent = "alfred"
-        elif "m4" in hostname or "mac" in hostname:
-            from_agent = "macadmin"
-        elif "ubuntu" in hostname or "mini" in hostname:
-            from_agent = "jarvis"
-        else:
-            from_agent = "unknown"
+        from_agent = _detect_agent()
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
-        cursor = await db.execute(
-            """INSERT INTO agent_chat
+    db = await get_db()
+    backend = get_backend()
+
+    if backend == Backend.SQLITE:
+        sql = """INSERT INTO agent_chat
                (from_agent, to_agent, message, context, priority)
-               VALUES (?, ?, ?, ?, ?)""",
-            (from_agent, to_agent, message, context, priority),
-        )
-        await db.commit()
-        message_id = cursor.lastrowid
+               VALUES (?, ?, ?, ?, ?)"""
+        await db.execute(sql, from_agent, to_agent, message, context, priority)
+        row = await db.fetchone("SELECT last_insert_rowid() as id")
+        message_id = row["id"]
+    else:
+        sql = """INSERT INTO agent_chat
+               (from_agent, to_agent, message, context, priority)
+               VALUES ($1, $2, $3, $4, $5)
+               RETURNING id"""
+        row = await db.fetchone(sql, from_agent, to_agent, message, context, priority)
+        message_id = row["id"]
 
     return {
         "message_id": message_id,
@@ -679,62 +769,69 @@ async def check_messages(
     Returns:
         dict with pending messages
     """
-    # Auto-detect agent from hostname if not provided
     if not agent:
-        import os
-        hostname = os.uname().nodename.lower()
-        if "atlas" in hostname:
-            agent = "alfred"
-        elif "m4" in hostname or "mac" in hostname:
-            agent = "macadmin"
-        elif "ubuntu" in hostname or "mini" in hostname:
-            agent = "jarvis"
-        else:
-            agent = "unknown"
+        agent = _detect_agent()
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db()
+    backend = get_backend()
 
-        if include_read:
-            status_filter = "('pending', 'read')"
-        else:
-            status_filter = "('pending')"
+    statuses = ["pending", "read"] if include_read else ["pending"]
 
-        # Get messages addressed to this agent or broadcast
+    if backend == Backend.SQLITE:
+        status_placeholders = ", ".join(["?" for _ in statuses])
         sql = f"""
             SELECT id, from_agent, to_agent, message, context, priority,
                    status, parent_id, response, created_at, read_at
             FROM agent_chat
             WHERE (to_agent = ? OR to_agent = 'all')
               AND from_agent != ?
-              AND status IN {status_filter}
+              AND status IN ({status_placeholders})
             ORDER BY
                 CASE priority WHEN 'urgent' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END,
                 created_at DESC
         """
+        rows = await db.fetchall(sql, agent, agent, *statuses)
+    else:
+        sql = """
+            SELECT id, from_agent, to_agent, message, context, priority,
+                   status, parent_id, response, created_at, read_at
+            FROM agent_chat
+            WHERE (to_agent = $1 OR to_agent = 'all')
+              AND from_agent != $1
+              AND status = ANY($2::text[])
+            ORDER BY
+                CASE priority WHEN 'urgent' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END,
+                created_at DESC
+        """
+        rows = await db.fetchall(sql, agent, statuses)
 
-        async with db.execute(sql, (agent, agent)) as cursor:
-            rows = await cursor.fetchall()
-            messages = [dict(row) for row in rows]
+    messages = rows
 
-        # Mark pending messages as read
-        if messages:
-            pending_ids = [m["id"] for m in messages if m["status"] == "pending"]
-            if pending_ids:
-                placeholders = ",".join("?" for _ in pending_ids)
+    # Mark pending messages as read
+    if messages:
+        pending_ids = [m["id"] for m in messages if m["status"] == "pending"]
+        if pending_ids:
+            if backend == Backend.SQLITE:
+                id_placeholders = ", ".join(["?" for _ in pending_ids])
                 await db.execute(
                     f"""UPDATE agent_chat
-                        SET status = 'read', read_at = CURRENT_TIMESTAMP
-                        WHERE id IN ({placeholders})""",
+                       SET status = 'read', read_at = CURRENT_TIMESTAMP
+                       WHERE id IN ({id_placeholders})""",
+                    *pending_ids,
+                )
+            else:
+                await db.execute(
+                    """UPDATE agent_chat
+                       SET status = 'read', read_at = CURRENT_TIMESTAMP
+                       WHERE id = ANY($1::int[])""",
                     pending_ids,
                 )
-                await db.commit()
 
-        return {
-            "messages": messages,
-            "count": len(messages),
-            "agent": agent,
-        }
+    return {
+        "messages": messages,
+        "count": len(messages),
+        "agent": agent,
+    }
 
 
 @mcp.tool()
@@ -755,41 +852,36 @@ async def reply_message(
     Returns:
         dict with reply status
     """
-    # Auto-detect agent from hostname if not provided
     if not from_agent:
-        import os
-        hostname = os.uname().nodename.lower()
-        if "atlas" in hostname:
-            from_agent = "alfred"
-        elif "m4" in hostname or "mac" in hostname:
-            from_agent = "macadmin"
-        elif "ubuntu" in hostname or "mini" in hostname:
-            from_agent = "jarvis"
-        else:
-            from_agent = "unknown"
+        from_agent = _detect_agent()
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db()
+    backend = get_backend()
+    p1 = db.placeholder(1)
 
-        # Get the original message
-        async with db.execute(
-            "SELECT * FROM agent_chat WHERE id = ?", (message_id,)
-        ) as cursor:
-            original = await cursor.fetchone()
+    # Get the original message
+    original = await db.fetchone(f"SELECT * FROM agent_chat WHERE id = {p1}", message_id)
 
-        if not original:
-            return {"error": f"Message {message_id} not found"}
+    if not original:
+        return {"error": f"Message {message_id} not found"}
 
-        new_status = "resolved" if resolve else "replied"
+    new_status = "resolved" if resolve else "replied"
 
-        # Update original message with response
+    # Update original message with response
+    if backend == Backend.SQLITE:
         await db.execute(
             """UPDATE agent_chat
                SET response = ?, status = ?, resolved_at = CURRENT_TIMESTAMP
                WHERE id = ?""",
-            (response, new_status, message_id),
+            response, new_status, message_id,
         )
-        await db.commit()
+    else:
+        await db.execute(
+            """UPDATE agent_chat
+               SET response = $1, status = $2, resolved_at = CURRENT_TIMESTAMP
+               WHERE id = $3""",
+            response, new_status, message_id,
+        )
 
     return {
         "status": "replied",
@@ -811,40 +903,29 @@ async def check_replies(
     Returns:
         dict with replied/resolved messages you sent
     """
-    # Auto-detect agent from hostname if not provided
     if not agent:
-        import os
-        hostname = os.uname().nodename.lower()
-        if "atlas" in hostname:
-            agent = "alfred"
-        elif "m4" in hostname or "mac" in hostname:
-            agent = "macadmin"
-        elif "ubuntu" in hostname or "mini" in hostname:
-            agent = "jarvis"
-        else:
-            agent = "unknown"
+        agent = _detect_agent()
 
-    async with get_db() as db:
-        db.row_factory = aiosqlite.Row
+    db = await get_db()
+    p1 = db.placeholder(1)
 
-        sql = """
-            SELECT id, from_agent, to_agent, message, context, priority,
-                   status, response, created_at, resolved_at
-            FROM agent_chat
-            WHERE from_agent = ?
-              AND status IN ('replied', 'resolved')
-              AND response IS NOT NULL
-            ORDER BY resolved_at DESC
-            LIMIT 20
-        """
+    sql = f"""
+        SELECT id, from_agent, to_agent, message, context, priority,
+               status, response, created_at, resolved_at
+        FROM agent_chat
+        WHERE from_agent = {p1}
+          AND status IN ('replied', 'resolved')
+          AND response IS NOT NULL
+        ORDER BY resolved_at DESC
+        LIMIT 20
+    """
 
-        async with db.execute(sql, (agent,)) as cursor:
-            rows = await cursor.fetchall()
-            return {
-                "replies": [dict(row) for row in rows],
-                "count": len(rows),
-                "agent": agent,
-            }
+    rows = await db.fetchall(sql, agent)
+    return {
+        "replies": rows,
+        "count": len(rows),
+        "agent": agent,
+    }
 
 
 def main():

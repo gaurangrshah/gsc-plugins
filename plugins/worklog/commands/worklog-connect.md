@@ -1,320 +1,262 @@
 ---
-description: Connect to an existing shared worklog database (secondary system setup)
+description: Path to the shared worklog database
 arguments:
   - name: db_path
-    description: Path to the shared worklog database
+    description: Path to SQLite database or PostgreSQL connection string
     required: false
 ---
 
 # Worklog Connect
 
-Connect this system to an existing shared worklog database. Use this on **secondary systems** after the primary system has run `/worklog-init`.
+Connect to an existing worklog database. Supports both SQLite (default) and PostgreSQL backends.
+
+**Note:** This is a quick-connect alias for `/worklog-init`. For full configuration including profile selection, run `/worklog-init` instead.
 
 ## Workflow
 
-### Step 1: Get Database Path
+### Step 1: Detect Backend
 
-If `db_path` argument provided, use it. Otherwise, ask user:
+If `db_path` argument provided:
+- If ends with `.db` → SQLite
+- If starts with `postgresql://` → PostgreSQL
+- If empty → Interactive selection
 
 ```
-Enter the path to the shared worklog database:
+Choose database backend:
 
-**Example paths by platform:**
-| Platform | Example Path |
-|----------|--------------|
-| macOS | `/Volumes/share-name/path/to/worklog.db` |
-| Linux | `/mnt/share-name/path/to/worklog.db` |
+[A] SQLite (Recommended for most users)
+    Connect to local or shared SQLite database file
+    - No external dependencies
+    - Works offline
 
-> Note: Use the actual path where your network share is mounted.
+[B] PostgreSQL (For multi-system setups)
+    Connect to PostgreSQL server
+    - Shared database across systems
+    - Requires network connectivity
 ```
 
-### Step 2: Verify Database Exists
+---
+
+### If SQLite Selected:
+
+#### Step 2a: Get Database Path
+
+```
+Enter path to SQLite database:
+- Local: ~/.claude/worklog/worklog.db (default)
+- Shared: /mnt/nas/worklog.db
+
+Path: _
+```
+
+#### Step 3a: Test Connection
 
 ```bash
-# Check file exists
-test -f {db_path} && echo "Found" || echo "Not found"
-
-# Verify it's a valid SQLite database
-sqlite3 {db_path} "SELECT name FROM sqlite_master WHERE type='table' LIMIT 1;"
+DB="$PROVIDED_PATH"
+[ -f "$DB" ] && echo "Database: ✅ Found" || echo "Database: ❌ Not found"
+sqlite3 "$DB" "SELECT COUNT(*) as count FROM entries;"
 ```
 
-**If not found:**
-- Check if mount point exists
-- Suggest mount commands if network path
-- Ask user to verify primary system ran `/worklog-init`
+If database exists and is readable:
+```
+SQLite Connection Test:
+=======================
+Database:  ✅ Found
+Entries:   127
+Tables:    6 core tables detected
 
-### Step 3: Test Connectivity
+Connection successful!
+```
+
+If not found:
+```
+Database not found at: /path/to/db
+
+Options:
+[1] Run /worklog-init to create new database
+[2] Provide different path
+[3] Cancel
+```
+
+---
+
+### If PostgreSQL Selected:
+
+#### Step 2b: Configure Connection
+
+```
+How would you like to configure the PostgreSQL connection?
+
+[A] DATABASE_URL (Recommended)
+    Single environment variable with full connection string
+
+[B] Individual PG* variables
+    Separate PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
+```
+
+**Option A - DATABASE_URL:**
 
 ```bash
-# Test read
-sqlite3 {db_path} "SELECT COUNT(*) FROM entries;"
+# Add to ~/.zshrc or ~/.bashrc:
+export DATABASE_URL="postgresql://user:password@host:port/database"
 
-# Test write (insert then delete test row)
-sqlite3 {db_path} "INSERT INTO entries (agent, task_type, title) VALUES ('_test', '_test', '_connectivity_test');"
-sqlite3 {db_path} "DELETE FROM entries WHERE agent='_test' AND task_type='_test';"
+# Reload:
+source ~/.zshrc
 ```
 
-**If write fails:**
-- Check journal mode: `PRAGMA journal_mode;`
-- Verify should be DELETE mode for network shares
-- Check directory permissions
-
-### Step 4: Detect Existing Profile
-
-Query the database to see what tables exist:
+**Option B - Individual Variables:**
 
 ```bash
-sqlite3 {db_path} "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
+# Add to ~/.zshrc or ~/.bashrc:
+export PGHOST=your-host
+export PGPORT=5432
+export PGDATABASE=worklog
+export PGUSER=worklog
+export PGPASSWORD="your-password"
+
+# Reload:
+source ~/.zshrc
 ```
 
-Determine available profiles:
-- 6 core tables only → MINIMAL or STANDARD available
-- 10+ tables (includes projects, components) → FULL available
-
-### Step 5: Choose Integration Profile
-
-Present options based on what's available:
-
-**[1] MINIMAL** - Lightweight persistence
-**[2] STANDARD** - Balanced integration (Recommended)
-**[3] FULL** - Maximum context awareness (if extended tables exist)
-
-If user selects FULL but extended tables don't exist, offer to create them:
-```
-Extended tables not found. Create them now? (y/n)
-```
-
-### Step 6: Create Backups (Safety Protocol)
-
-**Before making ANY changes**, backup existing files:
+#### Step 3b: Test Connection
 
 ```bash
-BACKUP_TS=$(date +%Y%m%d%H%M%S)
-BACKUP_DIR=~/.claude/.worklog-backup-$BACKUP_TS
-
-mkdir -p $BACKUP_DIR
-
-# Backup CLAUDE.md if exists
-if [ -f ~/.claude/CLAUDE.md ]; then
-  cp ~/.claude/CLAUDE.md $BACKUP_DIR/CLAUDE.md
-  echo "Backed up: CLAUDE.md"
-fi
-
-# Backup existing config if exists
-if [ -f ~/.claude/worklog.local.md ]; then
-  cp ~/.claude/worklog.local.md $BACKUP_DIR/worklog.local.md
-  echo "Backed up: worklog.local.md"
-fi
-
-# Record backup location
-echo $BACKUP_DIR > ~/.claude/.worklog-backup-path
+psql -c "SELECT 'Connected!' as status, COUNT(*) as entries FROM entries;"
 ```
 
-Inform the user: "Created backup at {BACKUP_DIR}. You can rollback if needed."
+If successful:
+```
+PostgreSQL Connection Test:
+===========================
+Host:      your-host:5432
+Database:  worklog
+Status:    ✅ Connected
+Entries:   127
 
-### Step 7: Create Plugin Configuration
+Connection successful!
+```
+
+If fails:
+```
+PostgreSQL Connection Test:
+===========================
+Status:    ❌ Failed
+Error:     {error_message}
+
+Troubleshooting:
+----------------
+{If "connection refused":}
+1. Check server is running
+2. Verify host and port
+
+{If "authentication failed":}
+1. Verify credentials
+2. Check DATABASE_URL or PG* variables
+
+{If "could not translate host name":}
+1. Check PGHOST is set correctly
+2. Verify DNS/network connectivity
+```
+
+---
+
+### Step 4: Create Configuration
 
 Create `.claude/worklog.local.md`:
 
 ```markdown
 ---
-profile: {selected_profile}
-db_path: {db_path}
-mode: shared
+profile: standard
+backend: {sqlite|postgresql}
+db_path: {path}                    # for SQLite
+# database_url: {url}             # for PostgreSQL (if using DATABASE_URL)
 system_name: {hostname}
-connected: {timestamp}
-primary_system: false
-backup_path: {backup_dir}
+initialized: {timestamp}
 ---
 
 # Worklog Configuration
 
-Connected to shared worklog database.
-
-## Current Settings
-- **Profile:** {profile}
-- **Database:** {db_path}
-- **Mode:** shared
-- **System:** {system_name}
-
-To change settings, run `/worklog-configure`.
+Connected to existing database via /worklog-connect.
+Run /worklog-configure to change settings.
 ```
 
-### Step 8: Inject CLAUDE.md Section
-
-Read appropriate template from `{plugin_root}/templates/` and process:
-
-**Check for existing worklog section:**
-```bash
-grep -q "<!-- WORKLOG_START -->" ~/.claude/CLAUDE.md
-```
-
-- If exists: Ask user "Existing worklog section found. Replace it? (y/n)"
-  - If yes: Remove content between `<!-- WORKLOG_START -->` and `<!-- WORKLOG_END -->`, then insert new
-  - If no: Abort and restore backup
-- If not exists: Append template content to CLAUDE.md
-
-Include network-specific additions for shared mode:
-- Retry logic for writes
-- Handoff mechanism for persistent failures
-
-### Step 9: Run Verification
-
-**Automated checks:**
-
-```bash
-# 1. Database accessible
-sqlite3 {db_path} "SELECT 1;" > /dev/null 2>&1
-DB_OK=$?
-
-# 2. CLAUDE.md has marker
-grep -q "<!-- WORKLOG_START -->" ~/.claude/CLAUDE.md
-MARKER_OK=$?
-
-# 3. Config file exists with correct path
-grep -q "db_path: {db_path}" ~/.claude/worklog.local.md
-CONFIG_OK=$?
-
-# 4. Write test (with retry for network)
-for i in 1 2 3; do
-  sqlite3 {db_path} "INSERT INTO entries (agent, task_type, title) VALUES ('_verify','_verify','_verify'); DELETE FROM entries WHERE agent='_verify';" && WRITE_OK=0 && break
-  WRITE_OK=1
-  sleep 2
-done
-```
-
-**Display verification results:**
+### Step 5: Confirmation
 
 ```
-Verification Results
-====================
-Database accessible: {✅|❌}
-CLAUDE.md updated:   {✅|❌}
-Config created:      {✅|❌}
-Write test:          {✅|❌}
+Worklog connected!
+
+Backend:  {sqlite|postgresql}
+Status:   ✅ Connected
+Entries:  {count}
+
+For full configuration (profile, hooks), run:
+/worklog-init
+
+Commands available:
+- /worklog-status - Check connectivity
+- /worklog-configure - Change settings
 ```
 
-### Step 10: User Confirmation
+## Quick Connect Examples
 
-If all checks pass:
+**SQLite (local):**
 ```
-Connection complete!
-
-Changes made:
-- Updated: ~/.claude/CLAUDE.md
-- Created: ~/.claude/worklog.local.md
-
-Database: {db_path}
-Profile: {profile}
-
-Keep these changes? (y/n)
+/worklog-connect ~/.claude/worklog/worklog.db
 ```
 
-**If user says YES:**
-```bash
-# Register system in database
-sqlite3 {db_path} "INSERT INTO entries (agent, task_type, title, details, outcome, tags)
-VALUES ('{system_name}', 'connection', 'System connected to shared worklog',
-'Profile: {profile}, System: {system_name}',
-'Successfully connected and configured',
-'system:{system_name},type:connect,profile:{profile}');"
-
-# Remove backup path marker (keep backup for 7 days)
-rm ~/.claude/.worklog-backup-path
-
-echo "Connection finalized. Backup retained at $BACKUP_DIR for 7 days."
+**SQLite (network share):**
+```
+/worklog-connect /Volumes/nas/shared/worklog.db
 ```
 
-**If user says NO:**
-```bash
-# Restore from backup
-BACKUP_DIR=$(cat ~/.claude/.worklog-backup-path)
-
-if [ -f $BACKUP_DIR/CLAUDE.md ]; then
-  cp $BACKUP_DIR/CLAUDE.md ~/.claude/CLAUDE.md
-fi
-
-rm -f ~/.claude/worklog.local.md
-
-rm ~/.claude/.worklog-backup-path
-rm -rf $BACKUP_DIR
-
-echo "Rolled back. All changes reverted."
+**PostgreSQL (via DATABASE_URL):**
+```
+/worklog-connect postgresql://user:pass@host:5432/worklog
 ```
 
-### Step 11: Provide Confirmation (on success)
+## Troubleshooting
 
-```
-Connected to shared worklog!
-
-Database: {db_path}
-Profile: {profile}
-System: {system_name}
-
-The following systems are using this database:
-{list recent entries grouped by agent}
-
-Skills available:
-- `memory-store` - Save learnings
-- `memory-recall` - Query context
-- `memory-sync` - Reconcile with local docs
-
-Run `/worklog-status` to verify connectivity.
-```
-
-## Error Handling
-
-**Verification fails:**
-- Show which checks failed
-- Offer to rollback or retry
-- Provide troubleshooting guidance
+### SQLite Issues
 
 **Database not found:**
-- Check mount point
-- Provide mount commands
-- Suggest running `/worklog-init` on primary first
-
-## Network Troubleshooting
-
-**"database is locked"**
-- Normal for SQLite over network
-- Retry logic handles this automatically
-- If persistent, check for stale connections on other systems
-
-**"unable to open database file"**
-- Verify mount: `mount | grep {mount_point}`
-- Check permissions: `ls -la {db_path}`
-- Verify journal mode is DELETE (not WAL)
-
-**Mount commands by OS:**
-
-macOS:
-```bash
-# SMB
-mount -t smbfs //server/share /Volumes/mount_point
+```
+1. Verify the file exists: ls -la /path/to/db
+2. Check you have read permissions
+3. If new setup, run /worklog-init instead
 ```
 
-Linux:
-```bash
-# CIFS/SMB
-sudo mount -t cifs //server/share /mnt/mount_point -o username=user,uid=1000
+**Permission denied:**
+```
+1. Check file permissions: ls -la /path/to/db
+2. For network shares, verify mount is writable
+3. Check directory permissions for journal file
 ```
 
-## Rollback Command
+### PostgreSQL Issues
 
-If user needs to rollback later:
+**Connection refused:**
+```
+1. Check if PostgreSQL server is running
+2. Verify host and port are correct
+3. Check network/firewall settings
+```
 
+**Authentication failed:**
+```
+1. Verify credentials in DATABASE_URL or PG* vars
+2. Check username and password
+3. Verify database name exists
+```
+
+**Environment not set:**
 ```bash
-# Find most recent backup
-BACKUP=$(ls -td ~/.claude/.worklog-backup-* 2>/dev/null | head -1)
+# Check environment
+echo "DATABASE_URL: ${DATABASE_URL:-not set}"
+echo "PGHOST: ${PGHOST:-not set}"
 
-if [ -n "$BACKUP" ]; then
-  cp $BACKUP/CLAUDE.md ~/.claude/CLAUDE.md
-  rm -f ~/.claude/worklog.local.md
-  echo "Restored from $BACKUP"
-else
-  echo "No backup found"
-fi
+# Set if needed
+export DATABASE_URL="postgresql://user:pass@host:port/db"
+source ~/.zshrc
 ```
 
 $ARGUMENTS

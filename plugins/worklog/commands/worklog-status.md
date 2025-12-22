@@ -12,65 +12,107 @@ Check worklog database connectivity and display usage statistics.
 ### Step 1: Load Configuration
 
 Read `.claude/worklog.local.md` for settings:
+- `backend`: sqlite or postgresql
 - `profile`
-- `db_path`
-- `mode`
-- `system_name`
+- `db_path` or `database_url`
 
 If config not found:
 ```
 Worklog not configured.
-Run /worklog-init to set up, or /worklog-connect to join existing.
+Run /worklog-init to set up.
 ```
 
-### Step 2: Test Connectivity
+### Step 2: Detect Backend
 
 ```bash
-# Test database access
-sqlite3 {db_path} "SELECT 1;" 2>&1
+# Auto-detect backend from environment
+if [ -n "$DATABASE_URL" ] || [ -n "$PGHOST" ]; then
+    BACKEND="postgresql"
+else
+    BACKEND="sqlite"
+fi
+echo "Backend: $BACKEND"
 ```
 
-**If successful:** Continue to stats
-**If failed:** Show troubleshooting
+### Step 3: Test Connectivity
 
-### Step 3: Gather Statistics
+**SQLite:**
+```bash
+DB="${WORKLOG_DB_PATH:-$HOME/.claude/worklog/worklog.db}"
+sqlite3 "$DB" "SELECT 1;" 2>&1
+```
 
-```sql
--- Table counts
+**PostgreSQL:**
+```bash
+psql -c "SELECT 1;" 2>&1
+```
+
+### Step 4: Gather Statistics
+
+**SQLite:**
+```bash
+DB="${WORKLOG_DB_PATH:-$HOME/.claude/worklog/worklog.db}"
+
+# Table counts
+sqlite3 "$DB" "
 SELECT
   (SELECT COUNT(*) FROM entries) as entries,
   (SELECT COUNT(*) FROM knowledge_base) as knowledge,
-  (SELECT COUNT(*) FROM memories) as memories,
-  (SELECT COUNT(*) FROM issues WHERE status='open') as open_issues,
-  (SELECT COUNT(*) FROM error_patterns) as error_patterns,
-  (SELECT COUNT(*) FROM research) as research;
+  (SELECT COUNT(*) FROM memories) as memories;
+"
 
--- Recent activity
+# Recent activity
+sqlite3 "$DB" "
 SELECT agent, COUNT(*) as count
 FROM entries
 WHERE timestamp > datetime('now', '-7 days')
 GROUP BY agent;
+"
 
--- Database size
-SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size();
+# Database size
+ls -lh "$DB" | awk '{print $5}'
 ```
 
-### Step 4: Display Status
+**PostgreSQL:**
+```bash
+# Table counts
+psql -t -c "
+SELECT
+  (SELECT COUNT(*) FROM entries) as entries,
+  (SELECT COUNT(*) FROM knowledge_base) as knowledge,
+  (SELECT COUNT(*) FROM memories) as memories;
+"
+
+# Recent activity
+psql -t -c "
+SELECT agent, COUNT(*) as count
+FROM entries
+WHERE timestamp > NOW() - INTERVAL '7 days'
+GROUP BY agent;
+"
+
+# Database size
+psql -t -c "SELECT pg_size_pretty(pg_database_size(current_database()));"
+```
+
+### Step 5: Display Status
 
 ```
 Worklog Status
 ==============
 
+Backend:     {sqlite|postgresql}
 Connection:  ✅ Connected
-Database:    {db_path}
 Profile:     {profile}
-Mode:        {mode}
-System:      {system_name}
 
-Database Stats:
----------------
-Size:            {size_mb} MB
-Journal Mode:    {journal_mode}
+{For SQLite:}
+Database:    {db_path}
+Size:        {size}
+
+{For PostgreSQL:}
+Host:        {host}:{port}
+Database:    {database}
+Size:        {size}
 
 Content:
 --------
@@ -79,13 +121,6 @@ Knowledge Base:  {count}
 Memories:        {count}
 Open Issues:     {count}
 Error Patterns:  {count}
-Research Items:  {count}
-
-{If FULL profile and extended tables exist:}
-Projects:        {count}
-Components:      {count}
-Clients:         {count}
-Competitors:     {count}
 
 Recent Activity (7 days):
 -------------------------
@@ -97,61 +132,78 @@ Last Entry:
 {timestamp} | {agent} | {title}
 ```
 
-### Step 5: Network Health (if shared mode)
+### Step 6: Test Write Access
 
-```sql
--- Check for recent write from this system
-SELECT COUNT(*) FROM entries
-WHERE agent = '{system_name}'
-AND timestamp > datetime('now', '-1 hour');
-```
-
-Test write:
+**SQLite:**
 ```bash
-sqlite3 {db_path} "UPDATE entries SET id=id WHERE id=(SELECT MAX(id) FROM entries);" 2>&1
+sqlite3 "$DB" "INSERT INTO entries (agent, task_type, title) VALUES ('_test', '_test', '_test'); DELETE FROM entries WHERE agent='_test';"
+echo "Write: ✅"
 ```
 
-```
-Network Health:
----------------
-Read:   ✅ Working
-Write:  ✅ Working (or ⚠️ Locked - retry in progress)
-
-Other Systems Active (24h):
----------------------------
-{system}: {last_seen}
-{system}: {last_seen}
+**PostgreSQL:**
+```bash
+psql -c "INSERT INTO entries (agent, task_type, title) VALUES ('_test', '_test', '_test'); DELETE FROM entries WHERE agent='_test';"
+echo "Write: ✅"
 ```
 
 ### Troubleshooting Output
 
 If connectivity fails:
 
+**SQLite:**
 ```
 Worklog Status
 ==============
 
+Backend:     SQLite
 Connection:  ❌ Failed
 Database:    {db_path}
 Error:       {error_message}
 
 Troubleshooting:
 ----------------
+1. Check if file exists: ls -la {db_path}
+2. Check permissions: test -w {db_path} && echo "Writable"
+3. Check directory exists: ls -la ~/.claude/worklog/
 
-{If "unable to open database file":}
-1. Check if path exists: ls -la {db_path}
-2. If network path, verify mount: mount | grep {mount_point}
-3. Check permissions on directory
+Run /worklog-init to create database.
+```
 
-{If "database is locked":}
-1. This is normal for network databases
-2. Wait 5-10 seconds and retry
-3. Check for stale connections: lsof {db_path}
+**PostgreSQL:**
+```
+Worklog Status
+==============
 
-{If "disk I/O error":}
-1. Verify network connectivity
-2. Check mount health
-3. Try remounting the share
+Backend:     PostgreSQL
+Connection:  ❌ Failed
+Error:       {error_message}
 
-Run /worklog-configure to update path if needed.
+Troubleshooting:
+----------------
+{If "connection refused":}
+1. Check server is running
+2. Verify host and port
+3. Check network connectivity
+
+{If "authentication failed":}
+1. Verify credentials
+2. Check DATABASE_URL or PG* variables
+
+{If "could not translate host name":}
+1. Check PGHOST is set
+2. Verify environment variables
+
+Run /worklog-configure to update settings.
+```
+
+## Quick Check Commands
+
+**SQLite:**
+```bash
+sqlite3 ~/.claude/worklog/worklog.db "SELECT 'OK', COUNT(*) FROM entries;"
+```
+
+**PostgreSQL:**
+```bash
+psql -c "SELECT 'OK', COUNT(*) FROM entries;"
 ```

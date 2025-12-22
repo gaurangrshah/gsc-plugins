@@ -1,12 +1,21 @@
 # Worklog - Cross-Session Knowledge Persistence
 
-A Claude Code plugin for maintaining knowledge, context, and learnings across sessions using SQLite.
+A Claude Code plugin for maintaining knowledge, context, and learnings across sessions.
 
-**Version:** 1.5.0
+**Version:** 1.6.0
 
 ## Overview
 
 Worklog provides persistent memory for Claude Code sessions. Store learnings, recall context, track work history, and maintain continuity across sessions and systems.
+
+### Database Backends
+
+| Backend | Best For | Dependencies |
+|---------|----------|--------------|
+| **SQLite** (default) | Single user, local development | None (built-in) |
+| **PostgreSQL** (optional) | Multi-system teams, shared context | PostgreSQL server |
+
+Choose your backend during `/worklog-init`. SQLite is recommended for most users.
 
 ## Standalone & Integration
 
@@ -131,12 +140,13 @@ Run in any Claude Code session:
 ```
 
 You'll be prompted to choose:
+- **Backend:** SQLite (default) or PostgreSQL
 - **Profile:** Standard (recommended) - balanced integration
 - **Location:** Local (default) - `~/.claude/worklog/worklog.db`
 
 The command will:
 1. Create a backup of your CLAUDE.md
-2. Initialize the database
+2. Initialize the database (SQLite) or connect (PostgreSQL)
 3. Add worklog section to CLAUDE.md
 4. Show verification results
 5. Ask for confirmation (rollback if declined)
@@ -150,9 +160,12 @@ After init, you have access to:
 
 ### Multi-System Setup (Optional)
 
+#### Option A: Shared SQLite (Network Mount)
+
 **Primary system:**
 ```
 /worklog-init
+# Choose: SQLite
 # Choose: shared location
 # Provide network path (e.g., /mnt/nas/worklog.db)
 ```
@@ -162,10 +175,6 @@ After init, you have access to:
 /worklog-connect /path/to/shared/worklog.db
 ```
 
-### Multi-System Path Reference (Advanced)
-
-When using a shared database across multiple systems, each system needs its own mount path to the same database file. Example configurations:
-
 | Platform | Example Shared DB Path |
 |----------|------------------------|
 | macOS | `/Volumes/share-name/path/to/worklog.db` |
@@ -173,6 +182,27 @@ When using a shared database across multiple systems, each system needs its own 
 | Windows | `\\server\share\path\to\worklog.db` |
 
 > **Note:** Network mount paths vary by system. Ensure each system can access the shared location before configuring.
+
+#### Option B: PostgreSQL (Recommended for Teams)
+
+**All systems:**
+```
+/worklog-init
+# Choose: PostgreSQL
+# Configure DATABASE_URL or PG* environment variables
+```
+
+Or quick connect:
+```bash
+export DATABASE_URL="postgresql://user:pass@host:5432/worklog"
+/worklog-connect
+```
+
+PostgreSQL advantages:
+- No network mount required
+- Better concurrent access
+- Centralized backup
+- Cross-agent collaboration
 
 ## Profiles
 
@@ -307,6 +337,8 @@ Observations are stored to `memories` table with `status='staging'` for review a
 
 **New in v1.4.0:** The worklog plugin includes an MCP server for direct tool access.
 
+**v1.6.0:** MCP server now supports both SQLite and PostgreSQL backends automatically.
+
 ### MCP Server Setup
 
 The MCP server requires Python 3.10+ and includes cross-platform setup scripts.
@@ -347,8 +379,11 @@ cd ~/.claude/plugins/marketplaces/gsc-plugins/worklog/mcp
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install the package
+# Install the package (SQLite support included by default)
 pip install -e .
+
+# For PostgreSQL support, install with optional dependency:
+pip install -e ".[postgresql]"
 
 # Verify installation
 python -m worklog_mcp --help
@@ -477,11 +512,23 @@ Install with: `sqlite3 $WORKLOG_DB_PATH < schema/domain-agency.sql`
 
 Settings stored in `~/.claude/worklog.local.md`:
 
+**SQLite Configuration:**
 ```yaml
 ---
 profile: standard
+backend: sqlite
 db_path: ~/.claude/worklog/worklog.db
 mode: local
+system_name: my-system
+---
+```
+
+**PostgreSQL Configuration:**
+```yaml
+---
+profile: standard
+backend: postgresql
+# Connection via DATABASE_URL or PG* environment variables
 system_name: my-system
 ---
 ```
@@ -490,9 +537,20 @@ system_name: my-system
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `WORKLOG_DB_PATH` | `~/.claude/worklog/worklog.db` | Database location |
+| `WORKLOG_BACKEND` | `sqlite` | `sqlite` or `postgresql` |
+| `WORKLOG_DB_PATH` | `~/.claude/worklog/worklog.db` | SQLite database location |
+| `DATABASE_URL` | - | PostgreSQL connection string |
+| `PGHOST`, `PGPORT`, etc. | - | Individual PostgreSQL settings |
 | `WORKLOG_PROFILE` | `standard` | Integration level |
 | `WORKLOG_MODE` | `local` | `local` or `shared` |
+
+### Backend Auto-Detection
+
+The plugin automatically detects the backend:
+1. If `DATABASE_URL` is set → PostgreSQL
+2. If `WORKLOG_BACKEND=postgresql` → PostgreSQL
+3. If `PGHOST` is set → PostgreSQL
+4. Otherwise → SQLite (default)
 
 ## Network Usage
 
@@ -533,38 +591,62 @@ sudo mount -t cifs //server/share /mnt/mount -o username=user,uid=1000
 
 ## Usage Examples
 
-### Store a Learning
+### SQLite Examples
 
 ```bash
-sqlite3 ~/.claude/worklog/worklog.db "INSERT INTO knowledge_base
+DB="${WORKLOG_DB_PATH:-$HOME/.claude/worklog/worklog.db}"
+
+# Store a Learning
+sqlite3 "$DB" "INSERT INTO knowledge_base
 (category, title, content, tags, source_agent) VALUES
 ('development', 'React memo pattern',
 'Use React.memo for expensive pure components...',
 'react,performance,patterns', 'claude');"
-```
 
-### Query Knowledge
+# Query Knowledge
+sqlite3 "$DB" "SELECT title, content FROM knowledge_base WHERE tags LIKE '%react%';"
 
-```bash
-sqlite3 ~/.claude/worklog/worklog.db \
-  "SELECT title, content FROM knowledge_base WHERE tags LIKE '%react%';"
-```
-
-### Log Work
-
-```bash
-sqlite3 ~/.claude/worklog/worklog.db "INSERT INTO entries
+# Log Work
+sqlite3 "$DB" "INSERT INTO entries
 (agent, task_type, title, outcome, tags) VALUES
 ('claude', 'development', 'Implemented auth flow',
 'JWT auth with refresh tokens', 'auth,security');"
+
+# Check Error Patterns
+sqlite3 "$DB" "SELECT resolution FROM error_patterns WHERE error_message LIKE '%ECONNREFUSED%';"
 ```
 
-### Check Error Patterns
+### PostgreSQL Examples
 
 ```bash
-sqlite3 ~/.claude/worklog/worklog.db \
-  "SELECT resolution FROM error_patterns WHERE error_message LIKE '%ECONNREFUSED%';"
+# Store a Learning
+psql -c "INSERT INTO knowledge_base
+(category, title, content, tags, source_agent) VALUES
+('development', 'React memo pattern',
+'Use React.memo for expensive pure components...',
+'react,performance,patterns', 'claude');"
+
+# Query Knowledge (ILIKE for case-insensitive)
+psql -t -c "SELECT title, content FROM knowledge_base WHERE tags ILIKE '%react%';"
+
+# Log Work
+psql -c "INSERT INTO entries
+(agent, task_type, title, outcome, tags) VALUES
+('claude', 'development', 'Implemented auth flow',
+'JWT auth with refresh tokens', 'auth,security');"
+
+# Check Error Patterns
+psql -t -c "SELECT resolution FROM error_patterns WHERE error_message ILIKE '%ECONNREFUSED%';"
 ```
+
+### SQL Syntax Differences
+
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| Case-insensitive | `LIKE` (default) | `ILIKE` |
+| Days ago | `datetime('now', '-7 days')` | `NOW() - INTERVAL '7 days'` |
+| Boolean | `1` / `0` | `true` / `false` |
+| Auto ID return | `last_insert_rowid()` | `RETURNING id` |
 
 ## Worklog Viewer (Web UI)
 
@@ -673,6 +755,15 @@ chmod 775 /path/to/db/directory
 ```
 
 ## Version History
+
+### 1.6.0
+- **Dual Database Backend**: Support for both SQLite (default) and PostgreSQL
+- **SQLite Default**: No external dependencies required for standard use
+- **PostgreSQL Optional**: For multi-system teams and cross-agent collaboration
+- **Backend Auto-Detection**: Automatically uses PostgreSQL if `DATABASE_URL` or `PGHOST` is set
+- **Database Abstraction Layer**: MCP server handles SQL dialect differences automatically
+- **Updated Commands**: All commands (`/worklog-init`, `/worklog-connect`, `/worklog-configure`, `/worklog-status`) support both backends
+- **Updated Skills**: `memory-store` and `memory-recall` skills show examples for both backends
 
 ### 1.5.0
 - **Cross-Platform Python Detection**: New `detect-python-env.sh` script with intelligent priority (pyenv → mise → Homebrew → system)

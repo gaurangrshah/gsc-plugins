@@ -1,18 +1,20 @@
 ---
 name: memory-recall
-description: Query the worklog database for context, knowledge, errors, and history using direct SQL
+description: Query the worklog database for context, knowledge, errors, and history
 ---
 
 # Memory Recall Skill
 
-Query the worklog database for relevant context, prior knowledge, and history.
+Query the worklog database to retrieve context, knowledge, and history.
 
 ## Prerequisites
 
-- Worklog plugin configured (run `/worklog-init` or `/worklog-connect` first)
-- Database path from `.claude/worklog.local.md`
+- Worklog plugin configured (run `/worklog-init` first)
+- Database backend configured:
+  - **SQLite (default)**: No additional setup needed
+  - **PostgreSQL (optional)**: Set `DATABASE_URL` or `PGHOST` environment variables
 
-## When to Use
+## When to Recall
 
 | Scenario | Query Type |
 |----------|------------|
@@ -22,267 +24,208 @@ Query the worklog database for relevant context, prior knowledge, and history.
 | Continuing previous work | Query entries and memories |
 | Learning about a topic | Search across all tables |
 
-## Boot Sequence Queries
+## Detect Your Backend
 
-Run these at the start of non-trivial tasks to load relevant context.
-
-### Light Boot (STANDARD profile)
-
-```sql
--- Recent work entries (last 24h)
-SELECT timestamp, title, outcome
-FROM entries
-WHERE timestamp > datetime('now', '-1 day')
-ORDER BY timestamp DESC LIMIT 5;
-
--- Active memories
-SELECT key, summary, importance
-FROM memories
-WHERE status != 'archived'
-ORDER BY importance DESC, last_accessed DESC LIMIT 5;
+```bash
+# Check which backend is configured
+if [ -n "$DATABASE_URL" ] || [ -n "$PGHOST" ]; then
+    echo "Backend: PostgreSQL"
+else
+    echo "Backend: SQLite"
+fi
 ```
 
-### Full Boot (FULL profile)
+---
 
-```sql
--- Protocols (always relevant)
-SELECT title, substr(content, 1, 300)
-FROM knowledge_base
-WHERE is_protocol = 1
-ORDER BY updated_at DESC LIMIT 3;
+## SQLite Queries (Default)
 
--- Recent work across all agents
-SELECT agent, title, outcome
-FROM entries
-WHERE timestamp > datetime('now', '-1 day')
-ORDER BY timestamp DESC LIMIT 10;
+Default database path: `~/.claude/worklog/worklog.db`
 
--- Open issues
-SELECT project, title, status
-FROM issues
-WHERE status = 'open'
-ORDER BY created_at DESC LIMIT 5;
+### Boot Sequence
 
--- Recent errors (might be relevant)
-SELECT error_signature, resolution
-FROM error_patterns
-WHERE last_seen > datetime('now', '-7 days')
-ORDER BY occurrence_count DESC LIMIT 3;
+```bash
+DB="${WORKLOG_DB_PATH:-$HOME/.claude/worklog/worklog.db}"
 
--- Important memories
-SELECT key, content, importance
-FROM memories
-WHERE status = 'promoted' OR importance >= 8
-ORDER BY importance DESC LIMIT 5;
+# Protocols
+sqlite3 "$DB" "SELECT title FROM knowledge_base WHERE is_protocol=1 ORDER BY updated_at DESC LIMIT 5;"
+
+# Recent work (24h)
+sqlite3 "$DB" "SELECT agent, title FROM entries WHERE timestamp > datetime('now', '-1 day') ORDER BY timestamp DESC LIMIT 5;"
+
+# Items flagged for me
+sqlite3 "$DB" "SELECT title FROM entries WHERE tags LIKE '%for:claude%' AND timestamp > datetime('now', '-7 days');"
 ```
-
-## Query Patterns
 
 ### Search Knowledge Base
 
 ```bash
-# By tag
-sqlite3 {db_path} "SELECT id, title, content
-FROM knowledge_base
-WHERE tags LIKE '%{tag}%'
-ORDER BY updated_at DESC;"
+# By topic
+sqlite3 "$DB" "SELECT id, title FROM knowledge_base WHERE title LIKE '%topic%' OR content LIKE '%topic%' ORDER BY updated_at DESC LIMIT 10;"
 
 # By category
-sqlite3 {db_path} "SELECT title, content
-FROM knowledge_base
-WHERE category = '{category}'
-ORDER BY updated_at DESC LIMIT 10;"
-
-# Full-text search
-sqlite3 {db_path} "SELECT title, content
-FROM knowledge_base
-WHERE content LIKE '%{search_term}%' OR title LIKE '%{search_term}%'
-ORDER BY updated_at DESC;"
+sqlite3 "$DB" "SELECT title, content FROM knowledge_base WHERE category = 'development' ORDER BY updated_at DESC LIMIT 10;"
 
 # Protocols only
-sqlite3 {db_path} "SELECT title, content
-FROM knowledge_base
-WHERE is_protocol = 1
-ORDER BY updated_at DESC;"
+sqlite3 "$DB" "SELECT title, content FROM knowledge_base WHERE is_protocol = 1 ORDER BY updated_at DESC;"
 ```
 
 ### Search Work History
 
 ```bash
 # By agent
-sqlite3 {db_path} "SELECT timestamp, title, outcome
-FROM entries
-WHERE agent = '{agent_name}'
-ORDER BY timestamp DESC LIMIT 20;"
+sqlite3 "$DB" "SELECT timestamp, title, outcome FROM entries WHERE agent = 'jarvis' ORDER BY timestamp DESC LIMIT 20;"
 
 # By task type
-sqlite3 {db_path} "SELECT timestamp, agent, title, outcome
-FROM entries
-WHERE task_type = '{task_type}'
-ORDER BY timestamp DESC LIMIT 10;"
-
-# By date range
-sqlite3 {db_path} "SELECT timestamp, title, outcome
-FROM entries
-WHERE timestamp BETWEEN '{start_date}' AND '{end_date}'
-ORDER BY timestamp DESC;"
+sqlite3 "$DB" "SELECT timestamp, agent, title FROM entries WHERE task_type = 'debugging' ORDER BY timestamp DESC LIMIT 10;"
 
 # Recent across all agents
-sqlite3 {db_path} "SELECT timestamp, agent, title, outcome
-FROM entries
-ORDER BY timestamp DESC LIMIT 20;"
+sqlite3 "$DB" "SELECT timestamp, agent, title FROM entries ORDER BY timestamp DESC LIMIT 20;"
 ```
 
 ### Search Error Patterns
 
 ```bash
 # By error text
-sqlite3 {db_path} "SELECT error_signature, root_cause, resolution
-FROM error_patterns
-WHERE error_message LIKE '%{error_text}%'
-   OR error_signature LIKE '%{error_text}%';"
+sqlite3 "$DB" "SELECT error_signature, resolution FROM error_patterns WHERE error_message LIKE '%error text%' LIMIT 5;"
 
 # By platform
-sqlite3 {db_path} "SELECT error_signature, resolution
-FROM error_patterns
-WHERE platform = '{platform}' OR platform = 'all'
-ORDER BY occurrence_count DESC;"
-
-# By language
-sqlite3 {db_path} "SELECT error_signature, resolution
-FROM error_patterns
-WHERE language = '{language}' OR language = 'all'
-ORDER BY occurrence_count DESC;"
-
-# Most frequent errors
-sqlite3 {db_path} "SELECT error_signature, occurrence_count, resolution
-FROM error_patterns
-ORDER BY occurrence_count DESC LIMIT 10;"
+sqlite3 "$DB" "SELECT error_signature, resolution FROM error_patterns WHERE platform = 'macos' ORDER BY id DESC LIMIT 10;"
 ```
 
 ### Query Memories
 
 ```bash
+# By key
+sqlite3 "$DB" "SELECT content FROM memories WHERE key = 'ctx_agent_date_slug';"
+
+# High importance
+sqlite3 "$DB" "SELECT key, summary FROM memories WHERE importance >= 7 ORDER BY importance DESC LIMIT 10;"
+
 # Active memories
-sqlite3 {db_path} "SELECT key, content, importance
-FROM memories
-WHERE status != 'archived'
-ORDER BY importance DESC, last_accessed DESC;"
-
-# By type
-sqlite3 {db_path} "SELECT key, content
-FROM memories
-WHERE memory_type = '{type}'
-ORDER BY importance DESC;"
-
-# Search by tag
-sqlite3 {db_path} "SELECT key, content, summary
-FROM memories
-WHERE tags LIKE '%{tag}%'
-ORDER BY importance DESC;"
-
-# Update access count when reading
-sqlite3 {db_path} "UPDATE memories
-SET access_count = access_count + 1,
-    last_accessed = CURRENT_TIMESTAMP
-WHERE key = '{key}';"
+sqlite3 "$DB" "SELECT key, summary FROM memories WHERE status != 'archived' ORDER BY importance DESC LIMIT 10;"
 ```
 
-### Query Issues
+---
+
+## PostgreSQL Queries (Optional)
+
+For multi-system setups with shared database.
+
+### Boot Sequence
 
 ```bash
-# Open issues
-sqlite3 {db_path} "SELECT id, project, title, created_at
-FROM issues
-WHERE status = 'open'
-ORDER BY created_at DESC;"
+# Protocols
+psql -t -c "SELECT title FROM knowledge_base WHERE is_protocol=true ORDER BY updated_at DESC LIMIT 5;"
 
-# By project
-sqlite3 {db_path} "SELECT title, status, resolution
-FROM issues
-WHERE project = '{project}'
-ORDER BY created_at DESC;"
+# Recent work (24h)
+psql -t -c "SELECT agent, title FROM entries WHERE timestamp > NOW() - INTERVAL '1 day' ORDER BY timestamp DESC LIMIT 5;"
 
-# Resolved with solutions
-sqlite3 {db_path} "SELECT title, description, resolution
-FROM issues
-WHERE status = 'resolved'
-ORDER BY resolved_at DESC LIMIT 10;"
+# Items flagged for me
+psql -t -c "SELECT title FROM entries WHERE tags LIKE '%for:claude%' AND timestamp > NOW() - INTERVAL '7 days';"
 ```
+
+### Search Knowledge Base
+
+```bash
+# By topic (ILIKE for case-insensitive)
+psql -t -c "SELECT id, title FROM knowledge_base WHERE title ILIKE '%topic%' OR content ILIKE '%topic%' ORDER BY updated_at DESC LIMIT 10;"
+
+# By category
+psql -t -c "SELECT title, content FROM knowledge_base WHERE category = 'development' ORDER BY updated_at DESC LIMIT 10;"
+
+# Protocols only
+psql -t -c "SELECT title, content FROM knowledge_base WHERE is_protocol = true ORDER BY updated_at DESC;"
+```
+
+### Search Work History
+
+```bash
+# By agent
+psql -t -c "SELECT timestamp, title, outcome FROM entries WHERE agent = 'jarvis' ORDER BY timestamp DESC LIMIT 20;"
+
+# By task type
+psql -t -c "SELECT timestamp, agent, title FROM entries WHERE task_type = 'debugging' ORDER BY timestamp DESC LIMIT 10;"
+
+# Recent across all agents
+psql -t -c "SELECT timestamp, agent, title FROM entries ORDER BY timestamp DESC LIMIT 20;"
+```
+
+### Search Error Patterns
+
+```bash
+# By error text
+psql -t -c "SELECT error_signature, resolution FROM error_patterns WHERE error_message ILIKE '%error text%' LIMIT 5;"
+
+# By platform
+psql -t -c "SELECT error_signature, resolution FROM error_patterns WHERE platform = 'macos' ORDER BY id DESC LIMIT 10;"
+```
+
+### Query Memories
+
+```bash
+# By key
+psql -t -c "SELECT content FROM memories WHERE key = 'ctx_agent_date_slug';"
+
+# High importance
+psql -t -c "SELECT key, summary FROM memories WHERE importance >= 7 ORDER BY importance DESC LIMIT 10;"
+
+# Active memories
+psql -t -c "SELECT key, summary FROM memories WHERE status != 'archived' ORDER BY importance DESC LIMIT 10;"
+```
+
+---
+
+## MCP Tools (Backend-Agnostic)
+
+The MCP server automatically uses the correct backend:
+
+```python
+# Search across tables
+search_knowledge(query="topic", tables="knowledge_base,entries")
+
+# Get context for a task
+recall_context(topic="docker deployment", min_importance=5)
+
+# Query specific table
+query_table(table="entries", where="agent='jarvis'", limit=10)
+
+# Get recent entries
+get_recent_entries(days=7, limit=20)
+```
+
+---
+
+## SQL Syntax Reference
+
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| Case-insensitive | `LIKE` (default) | `ILIKE` |
+| Days ago | `datetime('now', '-7 days')` | `NOW() - INTERVAL '7 days'` |
+| Boolean | `1` / `0` | `true` / `false` |
+| Last insert ID | `last_insert_rowid()` | `RETURNING id` |
 
 ## Cross-Table Search
 
-Find information across all tables:
-
+### SQLite
 ```bash
-sqlite3 {db_path} "
+sqlite3 "$DB" "
 SELECT 'knowledge' as source, title, substr(content, 1, 100) as preview
-FROM knowledge_base WHERE content LIKE '%{term}%'
+FROM knowledge_base WHERE content LIKE '%term%'
 UNION ALL
 SELECT 'entry' as source, title, outcome as preview
-FROM entries WHERE details LIKE '%{term}%' OR outcome LIKE '%{term}%'
-UNION ALL
-SELECT 'error' as source, error_signature as title, resolution as preview
-FROM error_patterns WHERE error_message LIKE '%{term}%'
-UNION ALL
-SELECT 'memory' as source, key as title, summary as preview
-FROM memories WHERE content LIKE '%{term}%'
+FROM entries WHERE details LIKE '%term%'
 LIMIT 20;"
 ```
 
-## Task-Specific Queries
-
-### Before Debugging
-
-```sql
--- Check for known error patterns
-SELECT error_signature, root_cause, resolution
-FROM error_patterns
-WHERE error_message LIKE '%{error_snippet}%'
-ORDER BY occurrence_count DESC LIMIT 5;
-
--- Check recent similar issues
-SELECT title, resolution
-FROM issues
-WHERE title LIKE '%{keyword}%' OR description LIKE '%{keyword}%'
-ORDER BY resolved_at DESC LIMIT 5;
-```
-
-### Before Architecture Decision
-
-```sql
--- Check precedents
-SELECT title, content
-FROM knowledge_base
-WHERE category = 'decisions'
-  AND (title LIKE '%{topic}%' OR tags LIKE '%{topic}%')
-ORDER BY updated_at DESC;
-
--- Check relevant protocols
-SELECT title, content
-FROM knowledge_base
-WHERE is_protocol = 1
-  AND (content LIKE '%{topic}%' OR tags LIKE '%{topic}%');
-```
-
-### Before Starting Project Work
-
-```sql
--- Project context (if FULL profile)
-SELECT name, description, status, notes
-FROM projects
-WHERE name = '{project}';
-
--- Recent work on this project
-SELECT timestamp, title, outcome
-FROM entries
-WHERE tags LIKE '%project:{project}%'
-ORDER BY timestamp DESC LIMIT 10;
-
--- Open issues for project
-SELECT title, status
-FROM issues
-WHERE project = '{project}' AND status = 'open';
+### PostgreSQL
+```bash
+psql -t -c "
+SELECT 'knowledge' as source, title, substring(content, 1, 100) as preview
+FROM knowledge_base WHERE content ILIKE '%term%'
+UNION ALL
+SELECT 'entry' as source, title, outcome as preview
+FROM entries WHERE details ILIKE '%term%'
+LIMIT 20;"
 ```
 
 ## Output Formatting
@@ -297,7 +240,6 @@ When presenting recalled information:
 {content_excerpt}
 
 ### From Work History
-- {timestamp}: {title} → {outcome}
 - {timestamp}: {title} → {outcome}
 
 ### Relevant Error Patterns
