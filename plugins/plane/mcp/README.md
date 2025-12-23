@@ -40,38 +40,53 @@ This MCP uses direct PostgreSQL access via SSH for Pages and Workspaces.
 
 ## Installation
 
-### 1. Create Virtual Environment
+### Quick Start (All Systems)
+
+1. Clone the gsc-plugins repo (or pull latest)
+2. Copy `.env.example` to `.env` and fill in credentials
+3. Create venv and install deps
+4. MCP auto-loads from `.env` file
+
+### Per-System Setup
+
+#### Atlas NAS (Primary)
 
 ```bash
 cd /volume2/dev-env/workspace/gsc-plugins/plugins/plane/mcp
 python3 -m venv .venv
 .venv/bin/pip install fastmcp httpx
+cp .env.example .env
+# Edit .env with actual credentials (from Bitwarden)
 ```
 
-### 2. Configure Claude Code
+#### Ubuntu-mini / M4-mini-work
 
-Add to project MCP config (`~/.claude.json`):
+```bash
+# Clone repo
+git clone git@github.com:gaurangrshah/gsc-plugins.git ~/gsc-plugins
+cd ~/gsc-plugins/plugins/plane/mcp
+python3 -m venv .venv
+.venv/bin/pip install fastmcp httpx
+cp .env.example .env
+# Edit .env with credentials
+```
+
+### Claude Code Configuration
+
+The MCP loads credentials from `.env` file automatically. Add to `~/.claude.json`:
 
 ```json
 {
   "projects": {
-    "/home/gs": {
+    "/path/to/project": {
       "mcpServers": {
         "plane": {
           "type": "stdio",
           "command": "python",
           "args": ["-m", "plane_mcp"],
-          "cwd": "/volume2/dev-env/workspace/gsc-plugins/plugins/plane/mcp",
+          "cwd": "/path/to/gsc-plugins/plugins/plane/mcp",
           "env": {
-            "PYTHONPATH": "/volume2/dev-env/workspace/gsc-plugins/plugins/plane/mcp/src",
-            "PLANE_API_URL": "http://192.168.1.199:3080",
-            "PLANE_API_KEY": "plane_api_xxx",
-            "PLANE_WORKSPACE_SLUG": "gsdev",
-            "PLANE_DB_SSH_HOST": "ubuntu-mini",
-            "PLANE_DB_CONTAINER": "plane-app-plane-db-1",
-            "PLANE_DB_USER": "plane",
-            "PLANE_DB_PASSWORD": "xxx",
-            "PLANE_DB_NAME": "plane"
+            "PYTHONPATH": "/path/to/gsc-plugins/plugins/plane/mcp/src"
           }
         }
       }
@@ -80,7 +95,14 @@ Add to project MCP config (`~/.claude.json`):
 }
 ```
 
-### 3. Get Credentials
+**Path by system:**
+| System | gsc-plugins path |
+|--------|------------------|
+| atlas | `/volume2/dev-env/workspace/gsc-plugins` |
+| ubuntu-mini | `~/gsc-plugins` |
+| m4-mini-work | `~/gsc-plugins` |
+
+### Get Credentials
 
 **API Key:**
 1. Log into Plane web UI
