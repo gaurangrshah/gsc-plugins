@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "plane": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "plane_mcp"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}/mcp",
+      "env": {
+        "PYTHONPATH": "${CLAUDE_PLUGIN_ROOT}/mcp/src"
+      }
+    }
+  }
+}
