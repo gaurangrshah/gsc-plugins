@@ -35,7 +35,7 @@ TABLE_COLUMNS: dict[str, frozenset[str]] = {
     }),
     "knowledge_base": frozenset({
         "id", "category", "title", "content", "tags", "source_agent",
-        "system", "is_protocol", "created_at", "updated_at", "gitea_url"
+        "system", "is_protocol", "created_at", "updated_at", "source_url"
     }),
     "entries": frozenset({
         "id", "timestamp", "agent", "task_type", "title", "details",
