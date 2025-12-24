@@ -63,6 +63,7 @@ fi
 
 ### Step 2: Query Recent Entries
 
+**SQLite:**
 ```sql
 -- Knowledge added in last 7 days
 SELECT id, category, title, content, tags, created_at
@@ -74,6 +75,27 @@ ORDER BY created_at DESC;
 SELECT id, title, outcome, tags, timestamp
 FROM entries
 WHERE timestamp > datetime('now', '-7 days')
+ORDER BY timestamp DESC;
+
+-- Active memories
+SELECT id, key, content, importance, status
+FROM memories
+WHERE status = 'staging'
+ORDER BY importance DESC;
+```
+
+**PostgreSQL:**
+```sql
+-- Knowledge added in last 7 days (includes gitea_url if available)
+SELECT id, category, title, content, tags, created_at, gitea_url
+FROM knowledge_base
+WHERE created_at > NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+
+-- Recent work entries
+SELECT id, title, outcome, tags, timestamp
+FROM entries
+WHERE timestamp > NOW() - INTERVAL '7 days'
 ORDER BY timestamp DESC;
 
 -- Active memories
@@ -215,11 +237,21 @@ WHERE id = {id};
 
 Archive stale memories:
 
+**SQLite:**
 ```sql
 UPDATE memories
 SET status = 'archived'
 WHERE status = 'staging'
   AND last_accessed < datetime('now', '-30 days')
+  AND importance < 5;
+```
+
+**PostgreSQL:**
+```sql
+UPDATE memories
+SET status = 'archived'
+WHERE status = 'staging'
+  AND last_accessed < NOW() - INTERVAL '30 days'
   AND importance < 5;
 ```
 
@@ -268,6 +300,7 @@ fi
 
 **Archive old entries (optional):**
 
+**SQLite:**
 ```sql
 -- Delete test/junk entries
 DELETE FROM entries
@@ -278,6 +311,19 @@ WHERE agent LIKE '_test%'
 DELETE FROM memories
 WHERE status = 'archived'
   AND last_accessed < datetime('now', '-90 days');
+```
+
+**PostgreSQL:**
+```sql
+-- Delete test/junk entries
+DELETE FROM entries
+WHERE agent LIKE '_test%'
+   OR title LIKE '%_test%';
+
+-- Clean up orphaned memories
+DELETE FROM memories
+WHERE status = 'archived'
+  AND last_accessed < NOW() - INTERVAL '90 days';
 ```
 
 ---
@@ -372,10 +418,19 @@ After sync, generate report:
 
 For shared databases, check for entries from other systems:
 
+**SQLite:**
 ```sql
 SELECT DISTINCT source_agent, system
 FROM knowledge_base
 WHERE created_at > datetime('now', '-7 days')
+  AND system != '{this_system}';
+```
+
+**PostgreSQL:**
+```sql
+SELECT DISTINCT source_agent, system
+FROM knowledge_base
+WHERE created_at > NOW() - INTERVAL '7 days'
   AND system != '{this_system}';
 ```
 
@@ -392,9 +447,16 @@ if [ -n "$DOCS_ROOT" ]; then
   KNOWLEDGE_BASE="${KNOWLEDGE_BASE:-$DOCS_ROOT/../.claude/knowledge}"
 fi
 
-# 2. Query recent knowledge
-sqlite3 "$WORKLOG_DB" "SELECT id, title, category, tags FROM knowledge_base
-WHERE created_at > datetime('now', '-7 days');"
+# 2. Query recent knowledge (detect backend)
+if [ -n "$DATABASE_URL" ] || [ -n "$PGHOST" ]; then
+  # PostgreSQL
+  psql -t -c "SELECT id, title, category, tags FROM knowledge_base
+    WHERE created_at > NOW() - INTERVAL '7 days';"
+else
+  # SQLite
+  sqlite3 "$WORKLOG_DB" "SELECT id, title, category, tags FROM knowledge_base
+    WHERE created_at > datetime('now', '-7 days');"
+fi
 
 # Found: ID 47 - "Docker compose override pattern" (category: patterns)
 # Action: New pattern, add to insights.md with score 1
