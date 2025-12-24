@@ -234,8 +234,9 @@ class SQLiteBackend(DatabaseBackend):
         return f"datetime('now', '-{days} days')"
 
     def ilike(self, column: str, placeholder: str) -> str:
-        # SQLite LIKE is case-insensitive for ASCII by default
-        return f"{column} LIKE {placeholder}"
+        # E1 fix: Use LOWER() for consistent case-insensitive matching
+        # SQLite's default LIKE behavior varies with collation settings
+        return f"LOWER({column}) LIKE LOWER({placeholder})"
 
     def array_contains(self, column: str, placeholder: str) -> str:
         # SQLite doesn't have array types, so we'll handle this differently
@@ -271,20 +272,33 @@ class PostgreSQLBackend(DatabaseBackend):
             self._pool = None
 
     async def execute(self, query: str, *args: Any) -> str:
-        async with self._pool.acquire() as conn:
-            return await conn.execute(query, *args)
+        # P2 fix: Add timeout to prevent indefinite wait on pool exhaustion
+        try:
+            async with asyncio.timeout(5):  # 5 second timeout to acquire connection
+                async with self._pool.acquire() as conn:
+                    return await conn.execute(query, *args)
+        except asyncio.TimeoutError:
+            raise DatabaseError("Database connection pool exhausted, please retry")
 
     async def fetchone(self, query: str, *args: Any) -> Optional[dict]:
-        async with self._pool.acquire() as conn:
-            row = await conn.fetchrow(query, *args)
-            if row:
-                return dict(row)
-            return None
+        try:
+            async with asyncio.timeout(5):
+                async with self._pool.acquire() as conn:
+                    row = await conn.fetchrow(query, *args)
+                    if row:
+                        return dict(row)
+                    return None
+        except asyncio.TimeoutError:
+            raise DatabaseError("Database connection pool exhausted, please retry")
 
     async def fetchall(self, query: str, *args: Any) -> list[dict]:
-        async with self._pool.acquire() as conn:
-            rows = await conn.fetch(query, *args)
-            return [dict(row) for row in rows]
+        try:
+            async with asyncio.timeout(5):
+                async with self._pool.acquire() as conn:
+                    rows = await conn.fetch(query, *args)
+                    return [dict(row) for row in rows]
+        except asyncio.TimeoutError:
+            raise DatabaseError("Database connection pool exhausted, please retry")
 
     def placeholder(self, index: int) -> str:
         return f"${index}"
@@ -350,11 +364,15 @@ async def get_db() -> DatabaseBackend:
 
 
 async def close_db() -> None:
-    """Close the database connection."""
+    """Close the database connection.
+
+    M5 fix: Uses lock to prevent race condition with get_db().
+    """
     global _db
-    if _db:
-        await _db.close()
-        _db = None
+    async with _db_lock:
+        if _db:
+            await _db.close()
+            _db = None
 
 
 def get_unique_violation_error():

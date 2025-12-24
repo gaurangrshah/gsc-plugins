@@ -26,37 +26,62 @@ from worklog_mcp.database import get_db, close_db, UniqueViolationError
 
 
 # Column whitelist per table - prevents SQL injection via column names
-TABLE_COLUMNS = {
-    "memories": {
+# Using frozenset for immutability (security: prevents runtime modification)
+TABLE_COLUMNS: dict[str, frozenset[str]] = {
+    "memories": frozenset({
         "id", "key", "content", "summary", "memory_type", "importance",
         "status", "tags", "source_agent", "system", "access_count",
         "last_accessed", "promoted_at", "created_at"
-    },
-    "knowledge_base": {
+    }),
+    "knowledge_base": frozenset({
         "id", "category", "title", "content", "tags", "source_agent",
         "system", "is_protocol", "created_at", "updated_at"
-    },
-    "entries": {
+    }),
+    "entries": frozenset({
         "id", "timestamp", "agent", "task_type", "title", "details",
         "decision_rationale", "outcome", "tags", "related_files"
-    },
-    "research": {
+    }),
+    "research": frozenset({
         "id", "source_type", "title", "summary", "key_points",
         "relevance_score", "tags", "status", "created_at"
-    },
-    "agent_chat": {
+    }),
+    "agent_chat": frozenset({
         "id", "from_agent", "to_agent", "message", "context", "priority",
         "status", "parent_id", "response", "created_at", "read_at", "resolved_at"
-    },
-    "issues": {
+    }),
+    "issues": frozenset({
         "id", "project", "title", "description", "status", "tags",
         "source_agent", "created_at"
-    },
-    "error_patterns": {
+    }),
+    "error_patterns": frozenset({
         "id", "error_signature", "error_message", "platform", "language",
         "root_cause", "resolution", "prevention_tip", "tags", "created_at"
-    },
+    }),
 }
+
+# Valid table names (immutable for security)
+VALID_TABLES: frozenset[str] = frozenset(TABLE_COLUMNS.keys())
+
+# Input length limits
+MAX_SEARCH_QUERY_LENGTH = 500
+MAX_FILTER_VALUE_LENGTH = 1000
+MAX_COLUMN_SPEC_LENGTH = 500
+
+
+def _escape_search_wildcards(term: str) -> str:
+    """Escape SQL wildcards in search terms to prevent wildcard injection.
+
+    Args:
+        term: Raw search term from user
+
+    Returns:
+        Escaped term safe for LIKE queries
+    """
+    # Escape backslash first, then wildcards
+    term = term.replace("\\", "\\\\")
+    term = term.replace("%", "\\%")
+    term = term.replace("_", "\\_")
+    return f"%{term}%"
 
 
 def _validate_columns(columns: str, table: str) -> tuple[bool, str]:
@@ -164,13 +189,26 @@ async def query_table(
         filter_value: Value to filter by (safely parameterized)
         order_by: Column to order by with direction, e.g. "created_at DESC"
         limit: Maximum rows to return (default 20, max 100)
-        offset: Number of rows to skip for pagination
+        offset: Number of rows to skip for pagination (must be >= 0)
 
     Returns:
         dict with 'rows' list and 'count' of total matching rows
     """
-    if table not in TABLES:
-        return {"error": f"Invalid table. Must be one of: {TABLES}"}
+    # Validate table name against immutable whitelist
+    if table not in VALID_TABLES:
+        return {"error": "Invalid table name"}
+
+    # Validate bounds (M1 fix: prevent negative values)
+    if limit < 0 or limit > 100:
+        limit = min(max(limit, 1), 100)
+    if offset < 0:
+        offset = 0
+
+    # Validate input lengths (M4 fix: prevent resource exhaustion)
+    if len(columns) > MAX_COLUMN_SPEC_LENGTH:
+        return {"error": "Column specification too long"}
+    if filter_value and len(filter_value) > MAX_FILTER_VALUE_LENGTH:
+        return {"error": "Filter value too long"}
 
     # Validate columns
     valid, result = _validate_columns(columns, table)
@@ -185,15 +223,14 @@ async def query_table(
     safe_order_by = result
 
     # Validate filter_column if provided
-    allowed_ops = {"=", "!=", ">", "<", ">=", "<=", "LIKE", "ILIKE"}
+    allowed_ops = frozenset({"=", "!=", ">", "<", ">=", "<=", "LIKE", "ILIKE"})
     if filter_column:
-        allowed = TABLE_COLUMNS.get(table, set())
+        allowed = TABLE_COLUMNS.get(table, frozenset())
         if filter_column.lower() not in allowed:
-            return {"error": f"Invalid filter_column: {filter_column}. Allowed: {sorted(allowed)}"}
+            return {"error": "Invalid filter column"}
         if filter_op.upper() not in allowed_ops:
-            return {"error": f"Invalid filter_op: {filter_op}. Allowed: {sorted(allowed_ops)}"}
+            return {"error": "Invalid filter operator"}
 
-    limit = min(limit, 100)
     db = await get_db()
     backend = get_backend()
 
@@ -250,19 +287,27 @@ async def search_knowledge(
     Args:
         query: Search term to find
         tables: Comma-separated table names to search (default: all)
-        limit: Maximum results per table (default 10)
+        limit: Maximum results per table (default 10, max 100)
 
     Returns:
         dict with results grouped by table
     """
-    search_tables = tables.split(",") if tables else TABLES
-    search_tables = [t.strip() for t in search_tables if t.strip() in TABLES]
+    # Validate input length
+    if len(query) > MAX_SEARCH_QUERY_LENGTH:
+        return {"error": "Search query too long"}
+
+    # Validate and bound limit
+    limit = min(max(limit, 1), 100)
+
+    search_tables = tables.split(",") if tables else list(VALID_TABLES)
+    search_tables = [t.strip() for t in search_tables if t.strip() in VALID_TABLES]
 
     if not search_tables:
-        return {"error": f"No valid tables. Options: {TABLES}"}
+        return {"error": "No valid tables specified"}
 
     results = {}
-    search_term = f"%{query}%"
+    # E2 fix: Escape SQL wildcards to prevent wildcard injection
+    search_term = _escape_search_wildcards(query)
     db = await get_db()
     backend = get_backend()
 
@@ -355,15 +400,24 @@ async def recall_context(
         memory_types: Comma-separated types (fact, entity, preference, context)
         min_importance: Minimum importance score (1-10, default 5)
         include_recent: Include recent context entries regardless of topic match
-        limit: Maximum results to return
+        limit: Maximum results to return (max 100)
 
     Returns:
         dict with categorized context (memories, knowledge, recent_work)
     """
+    # Validate input length
+    if len(topic) > MAX_SEARCH_QUERY_LENGTH:
+        return {"error": "Topic too long"}
+
+    # Validate and bound inputs
+    limit = min(max(limit, 1), 100)
+    min_importance = min(max(min_importance, 1), 10)
+
     types = memory_types.split(",") if memory_types else ["fact", "context"]
     types = [t.strip() for t in types if t.strip() in MEMORY_TYPES]
 
-    search_term = f"%{topic}%"
+    # E2 fix: Escape SQL wildcards
+    search_term = _escape_search_wildcards(topic)
     results = {
         "topic": topic,
         "memories": [],

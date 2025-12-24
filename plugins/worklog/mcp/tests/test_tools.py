@@ -191,7 +191,7 @@ async def test_query_table_invalid_filter_column():
         filter_value="test"
     )
     assert "error" in result
-    assert "Invalid filter_column" in result["error"]
+    assert "Invalid filter column" in result["error"]
 
 
 @pytest.mark.asyncio
@@ -206,4 +206,4 @@ async def test_query_table_invalid_filter_op():
         filter_value="test"
     )
     assert "error" in result
-    assert "Invalid filter_op" in result["error"]
+    assert "Invalid filter operator" in result["error"]
