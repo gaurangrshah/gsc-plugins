@@ -743,9 +743,7 @@ Initial release after pivoting from local LLM experiment.
 - Orchestration (LangChain) doesn't fix model capability issues
 - Claude's instruction-following is the real differentiator
 
-**Archived:** The original Next.js + Ollama experiment is preserved at:
-- Repo: `/home/gs/projects/experiments/webgen`
-- Branch: `archive/local-llm-experiment`
+**Archived:** The original Next.js + Ollama experiment is preserved in the `archive/local-llm-experiment` branch.
 
 ## Future Considerations
 

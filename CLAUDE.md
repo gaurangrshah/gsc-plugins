@@ -2,6 +2,31 @@
 
 **This file provides context for Claude Code agents working on this repository.**
 
+## CRITICAL: This is a PUBLIC Package
+
+**This package is distributed via claude-plugins.dev to users worldwide.**
+
+### Agnosticism Rules (Non-Negotiable)
+
+Before making ANY changes, verify:
+
+| Check | Violation Example | Correct |
+|-------|------------------|---------|
+| No absolute user paths | `/home/gs/workspace/` | `~/projects/` |
+| No internal domains | `git.internal.muhaha.dev` | `${GITEA_URL}` or `example.com` |
+| No hardcoded hostnames | `ubuntu-mini`, `atlas` | Environment variables |
+| No personal agent names | `jarvis`, `alfred` | `claude` or configurable |
+
+**Pre-commit check:**
+```bash
+grep -rE "/home/\w+|\.internal\.|ubuntu-mini|atlas" plugins/
+# Must return NO matches
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full guidelines.
+
+---
+
 ## Repository Purpose
 
 This is a **Claude Code plugin marketplace** - a collection of plugins distributed via GitHub.
@@ -99,17 +124,13 @@ claude plugin install worklog@gsc-plugins
 ~/.claude/plugins/local-plugins/worklog/     (active)
 ```
 
-### Development on Atlas NAS
+### Local Development Workflow
 
-On atlas, there's also a local-plugins copy for immediate testing:
-- `~/.claude/plugins/local-plugins/worklog/` - LOCAL testing copy
-- `~/projects/gsc-plugins/plugins/worklog/` - THIS REPO (source of truth)
-
-**Workflow:**
-1. Develop in `~/projects/gsc-plugins/plugins/`
-2. Test locally by copying to `~/.claude/plugins/local-plugins/`
-3. Commit and push to GitHub
-4. Other machines update via marketplace
+For local testing during development:
+- Develop in this repo's `plugins/` directory
+- Test by copying to `~/.claude/plugins/local-plugins/`
+- Commit and push to GitHub
+- Other machines update via marketplace
 
 ### Propagating Updates to Other Machines
 

@@ -8,7 +8,7 @@ Initialize the TaskFlow task management system in the current project directory.
 
 ## What This Command Does
 
-1. Detect current environment (atlas, dev-vm, or default)
+1. Detect current environment (from hostname or environment variables)
 2. Create `.tasks/` directory structure with tag support
 3. Create `master` tag with empty `tasks.json`
 4. Create `state.json` to track current tag
@@ -172,7 +172,7 @@ fi
 **Method C: Check if repo has Gitea remote**
 ```bash
 # Check if current repo has a Gitea remote
-GITEA_REMOTE=$(git remote -v 2>/dev/null | grep -E "git\.internal\.muhaha\.dev|gitea" | head -1)
+GITEA_REMOTE=$(git remote -v 2>/dev/null | grep -iE "gitea|your-gitea-domain" | head -1)
 if [ -n "$GITEA_REMOTE" ]; then
   echo "Gitea remote detected: $GITEA_REMOTE"
 fi
@@ -182,9 +182,8 @@ fi
 ```bash
 # Gitea is available if EITHER config exists OR repo has Gitea remote
 if [ -n "$GITEA_CONFIG" ] || [ -n "$GITEA_REMOTE" ]; then
-  # Verify API is reachable
-  if ssh -o ConnectTimeout=3 ubuntu-mini 'source ~/.config/gitea/credentials 2>/dev/null && \
-    curl -s --max-time 3 "${GITEA_URL}/api/v1/version" -H "Authorization: token ${GITEA_TOKEN}"' 2>/dev/null | grep -q version; then
+  # Verify API is reachable (uses GITEA_URL from environment or config)
+  if curl -s --max-time 3 "${GITEA_URL}/api/v1/version" -H "Authorization: token ${GITEA_TOKEN}" 2>/dev/null | grep -q version; then
     echo "Gitea available and API reachable"
   fi
 fi
@@ -193,16 +192,16 @@ fi
 **If Gitea is reachable:**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Gitea detected at git.internal.muhaha.dev                       │
+│ Gitea detected at ${GITEA_URL}                                  │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │ Enable Gitea sync for this project?                             │
 │                                                                 │
 │ This will:                                                      │
-│   • Create issues in gs/tasks when you run /task-parse          │
+│   • Create issues in your-org/tasks when you run /task-parse    │
 │   • Sync task status changes to Gitea kanban                    │
 │   • Allow visual task management at:                            │
-│     http://git.internal.muhaha.dev/gs/tasks/projects            │
+│     ${GITEA_URL}/your-org/tasks/projects                        │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │ [Y]es - Enable Gitea sync                                       │
@@ -387,7 +386,7 @@ If index file doesn't exist, create it:
 
 **With Gitea enabled:**
 ```
-TaskFlow initialized in: /home/gs/workspace/projects/my-project
+TaskFlow initialized in: ~/projects/my-project
 
 Structure created:
   .tasks/
@@ -395,9 +394,9 @@ Structure created:
   ├── state.json (tracking: master tag)
   └── tags/master/tasks.json
 
-Registered in: ~/workspace/.task-index.json
-Gitea sync: enabled → gs/tasks (auto-sync on)
-Kanban: http://git.internal.muhaha.dev/gs/tasks/projects
+Registered in: ~/.task-index.json
+Gitea sync: enabled → your-org/tasks (auto-sync on)
+Kanban: ${GITEA_URL}/your-org/tasks/projects
 
 Next steps:
   1. Create a PRD document in docs/PRD/
@@ -409,7 +408,7 @@ Or run /task to see status overview.
 
 **Without Gitea (local only):**
 ```
-TaskFlow initialized in: /home/gs/workspace/projects/my-project
+TaskFlow initialized in: ~/projects/my-project
 
 Structure created:
   .tasks/
@@ -417,7 +416,7 @@ Structure created:
   ├── state.json (tracking: master tag)
   └── tags/master/tasks.json
 
-Registered in: ~/workspace/.task-index.json
+Registered in: ~/.task-index.json
 Gitea sync: disabled (run /task-sync to enable later)
 
 Next steps:
@@ -432,7 +431,7 @@ Or run /task to see status overview.
 ### Directory Name Contains Special Characters
 
 ```
-# In directory: /home/gs/workspace/My Project (2024)
+# In directory: ~/projects/My Project (2024)
 /task-init
 
 Project name derived: my-project-2024
@@ -463,7 +462,7 @@ If parent directory has `.tasks/`:
 
 ```
 Warning: Parent directory contains TaskFlow initialization.
-  Parent: /home/gs/workspace/projects/.tasks/
+  Parent: ~/projects/.tasks/
 
 Continue with nested initialization? This creates separate task tracking.
 [Y]es / [N]o
@@ -475,7 +474,7 @@ Continue with nested initialization? This creates separate task tracking.
 Error: Cannot write to current directory.
 
 Check permissions:
-  Directory: /home/gs/workspace/readonly-project
+  Directory: ~/projects/readonly-project
   Required: Write permission
 
 Try: sudo chown $USER:$USER /path/to/project
@@ -522,4 +521,3 @@ Try: sudo chown $USER:$USER /path/to/project
 - Command: /task-sync (manual Gitea sync)
 - Design: ~/.claude/knowledge/guides/taskflow-design.md
 - Config: ~/.claude/task-config.json
-- Gitea: http://git.internal.muhaha.dev/gs/tasks/projects

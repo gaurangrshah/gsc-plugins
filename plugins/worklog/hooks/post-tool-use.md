@@ -302,7 +302,7 @@ WHERE memory_type = 'observation' AND status = 'staging';" 2>/dev/null)
 ### Config Change
 ```json
 {
-  "key": "obs_ubuntu-mini_20241216143022_docker_compose_yml",
+  "key": "obs_myhost_20241216143022_docker_compose_yml",
   "summary": "Added Redis service to docker-compose.yml",
   "memory_type": "observation",
   "importance": 7,
@@ -313,7 +313,7 @@ WHERE memory_type = 'observation' AND status = 'staging';" 2>/dev/null)
 ### Code Change
 ```json
 {
-  "key": "obs_ubuntu-mini_20241216143156_auth_ts",
+  "key": "obs_myhost_20241216143156_auth_ts",
   "summary": "Implemented JWT refresh token rotation",
   "memory_type": "observation",
   "importance": 6,
@@ -324,8 +324,8 @@ WHERE memory_type = 'observation' AND status = 'staging';" 2>/dev/null)
 ### Documentation
 ```json
 {
-  "key": "obs_ubuntu-mini_20241216143312_README_md",
-  "summary": "Added deployment instructions for Coolify",
+  "key": "obs_myhost_20241216143312_README_md",
+  "summary": "Added deployment instructions",
   "memory_type": "observation",
   "importance": 5,
   "tags": "observation,auto:post-tool,file:README.md,type:docs"

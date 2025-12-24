@@ -107,13 +107,13 @@ Read the Python path from the setup output and help configure `.mcp.json`:
 VENV_PYTHON=$(cat "$PLUGIN_DIR/mcp/.python-path")
 ```
 
-Determine the correct database path based on system:
+Determine the correct database path based on your setup:
 
-| System | Database Path |
-|--------|---------------|
-| atlas (NAS) | /volume2/dev-env/workspace/logs/worklog.db |
-| m4-mini-work (Mac) | /Volumes/dev-env/workspace/logs/worklog.db |
-| ubuntu-mini | /mnt/nasdevenv/workspace/logs/worklog.db |
+| Setup | Database Path |
+|-------|---------------|
+| Local (default) | ~/.claude/worklog/worklog.db |
+| Shared (network mount) | /path/to/shared/worklog.db |
+| PostgreSQL | Set via DATABASE_URL environment variable |
 
 Create or update `~/.claude/.mcp.json`:
 

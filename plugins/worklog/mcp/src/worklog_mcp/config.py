@@ -150,7 +150,10 @@ TABLES = ["memories", "knowledge_base", "entries", "research", "agent_chat",
           "issues", "error_patterns"]
 
 # Valid agent names for chat
-AGENTS = ["alfred", "macadmin", "jarvis", "all"]
+# Default agents - can be extended via WORKLOG_AGENTS env var (comma-separated)
+_default_agents = ["claude", "all"]
+_custom_agents = os.environ.get("WORKLOG_AGENTS", "").split(",")
+AGENTS = list(set(_default_agents + [a.strip().lower() for a in _custom_agents if a.strip()]))
 
 # Chat message statuses
 CHAT_STATUSES = ["pending", "read", "replied", "resolved"]

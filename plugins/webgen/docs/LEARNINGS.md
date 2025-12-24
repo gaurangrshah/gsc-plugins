@@ -45,8 +45,8 @@ Documented observations from test runs to inform future improvements.
 - Cross-volume pnpm store falls back to copy instead of hardlink
 
 **Environment:**
-- Project path: `/home/gs/workspace/` = CIFS mount to NAS
-- pnpm store: Different volume
+- Project path on network-mounted filesystem (CIFS/NFS)
+- pnpm store on different volume
 
 **Solution (v1.3):**
 - Fail-fast infrastructure verification

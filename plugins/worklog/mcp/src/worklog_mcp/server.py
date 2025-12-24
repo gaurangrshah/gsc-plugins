@@ -881,16 +881,34 @@ async def get_recent_entries(
 
 
 def _detect_agent() -> str:
-    """Auto-detect agent name from hostname."""
+    """Auto-detect agent name from environment or hostname.
+
+    Priority:
+    1. WORKLOG_AGENT_NAME environment variable (explicit override)
+    2. Hostname-based detection (configurable)
+    3. Default: "claude"
+    """
     import os
+
+    # Priority 1: Explicit environment variable
+    agent_name = os.environ.get("WORKLOG_AGENT_NAME")
+    if agent_name:
+        return agent_name.lower()
+
+    # Priority 2: Hostname-based (for multi-agent setups)
     hostname = os.uname().nodename.lower()
-    if "atlas" in hostname:
-        return "alfred"
-    elif "m4" in hostname or "mac" in hostname:
-        return "macadmin"
-    elif "ubuntu" in hostname or "mini" in hostname:
-        return "jarvis"
-    return "unknown"
+
+    # Check for custom hostname mapping via env (format: "hostname1:agent1,hostname2:agent2")
+    hostname_map = os.environ.get("WORKLOG_HOSTNAME_MAP", "")
+    if hostname_map:
+        for mapping in hostname_map.split(","):
+            if ":" in mapping:
+                host_pattern, agent = mapping.split(":", 1)
+                if host_pattern.lower() in hostname:
+                    return agent.lower()
+
+    # Priority 3: Default
+    return "claude"
 
 
 @mcp.tool()
@@ -904,9 +922,10 @@ async def send_message(
     """Send a message to another agent for quick help mid-task.
 
     Args:
-        to_agent: Target agent (alfred, macadmin, jarvis, or 'all' for broadcast)
+        to_agent: Target agent name or 'all' for broadcast.
+                  Custom agents can be added via WORKLOG_AGENTS env var.
         message: The message/question to send
-        from_agent: Sender agent name (auto-detected from hostname if not provided)
+        from_agent: Sender agent name (auto-detected if not provided)
         context: Optional context about current task
         priority: Message priority (low, normal, urgent)
 

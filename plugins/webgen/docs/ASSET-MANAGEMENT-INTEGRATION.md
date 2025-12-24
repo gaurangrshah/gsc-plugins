@@ -28,7 +28,7 @@ This document summarizes the asset management system integration into the WebGen
 
 ### 1. Asset Management Skill
 
-**File:** `/home/gs/projects/gsc-plugins/plugins/webgen/skills/asset-management/skill.md`
+**File:** `plugins/webgen/skills/asset-management/skill.md`
 
 **Purpose:** Complete asset extraction, cataloging, and propagation system
 

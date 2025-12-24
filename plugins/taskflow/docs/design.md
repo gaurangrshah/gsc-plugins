@@ -116,7 +116,7 @@ TaskFlow transforms Product Requirements Documents (PRDs) into structured, depen
   "projects": {
     "project-slug": {
       "name": "My Project",
-      "path": "/home/gs/workspace/projects/my-project",
+      "path": "~/projects/my-project",
       "created": "2025-11-29T10:00:00Z",
       "lastAccessed": "2025-11-29T12:00:00Z",
       "currentTag": "master",

@@ -324,9 +324,9 @@ Created the local plugin infrastructure:
    "local-plugins": {
      "source": {
        "source": "local",
-       "path": "/home/gs/.claude/plugins/local-plugins"
+       "path": "~/.claude/plugins/local-plugins"
      },
-     "installLocation": "/home/gs/.claude/plugins/local-plugins"
+     "installLocation": "~/.claude/plugins/local-plugins"
    }
    ```
 
@@ -334,7 +334,7 @@ Created the local plugin infrastructure:
    ```json
    "webgen@local-plugins": [{
      "scope": "user",
-     "installPath": "/home/gs/.claude/plugins/local-plugins/webgen",
+     "installPath": "~/.claude/plugins/local-plugins/webgen",
      "version": "1.0.0",
      "isLocal": true
    }]

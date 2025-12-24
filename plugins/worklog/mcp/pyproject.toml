@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    { name = "gs", email = "gs@ubuntu-mini" }
+    { name = "gaurangrshah" }
 ]
 keywords = ["mcp", "worklog", "knowledge-base", "sqlite", "postgresql", "claude"]
 classifiers = [

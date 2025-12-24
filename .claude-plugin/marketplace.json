@@ -12,28 +12,28 @@
     {
       "name": "webgen",
       "source": "./plugins/webgen",
-      "version": "1.5.0",
+      "version": "1.6.0",
       "description": "Transform natural language descriptions into complete, production-ready web projects",
       "keywords": ["web", "generator", "react", "nextjs", "astro", "frontend", "landing-pages"]
     },
     {
       "name": "appgen",
       "source": "./plugins/appgen",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "Generate full-stack applications and APIs from natural language descriptions",
       "keywords": ["app", "generator", "fullstack", "api", "backend", "database", "auth"]
     },
     {
       "name": "worklog",
       "source": "./plugins/worklog",
-      "version": "1.2.0",
-      "description": "Cross-session knowledge persistence with SQLite for maintaining context across sessions",
+      "version": "1.6.1",
+      "description": "Cross-session knowledge persistence with SQLite/PostgreSQL for maintaining context across sessions",
       "keywords": ["memory", "persistence", "sqlite", "knowledge-base", "cross-session", "hooks", "automation"]
     },
     {
       "name": "taskflow",
       "source": "./plugins/taskflow",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "description": "AI-powered task management - transform PRDs into structured, dependency-aware tasks",
       "keywords": ["tasks", "project-management", "prd", "workflow", "productivity"]
     },
