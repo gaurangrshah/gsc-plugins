@@ -96,9 +96,20 @@ def get_postgresql_params() -> dict:
             "Set PGPASSWORD or include password in DATABASE_URL."
         )
 
+    # Validate port number
+    port_str = os.environ.get("PGPORT", "5432")
+    try:
+        port = int(port_str)
+        if not (1 <= port <= 65535):
+            raise ValueError(f"Port must be between 1 and 65535, got {port}")
+    except ValueError as e:
+        if "invalid literal" in str(e):
+            raise ValueError(f"Invalid PGPORT value: {port_str}. Must be a number.")
+        raise
+
     return {
         "host": host,
-        "port": int(os.environ.get("PGPORT", "5432")),
+        "port": port,
         "database": os.environ.get("PGDATABASE", "worklog"),
         "user": os.environ.get("PGUSER", "worklog"),
         "password": password,
@@ -120,8 +131,13 @@ def _parse_database_url(url: str) -> dict:
     }
 
 
-def get_dsn() -> str:
-    """Get PostgreSQL connection string (DSN)."""
+def _get_dsn() -> str:
+    """Get PostgreSQL connection string (DSN).
+
+    WARNING: This returns a connection string containing the password.
+    Use only for direct connection, never log or expose this value.
+    Marked as internal (_prefix) to discourage direct use.
+    """
     params = get_postgresql_params()
     return (
         f"postgresql://{params['user']}:{params['password']}"

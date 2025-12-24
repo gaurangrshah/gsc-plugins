@@ -6,7 +6,9 @@ Provides a unified interface for both databases, handling:
 - Error handling
 """
 
+import asyncio
 import os
+import sys
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -259,6 +261,8 @@ class PostgreSQLBackend(DatabaseBackend):
             password=self.params["password"],
             min_size=1,
             max_size=10,
+            timeout=30,  # Connection timeout in seconds
+            command_timeout=60,  # Query timeout in seconds
         )
 
     async def close(self) -> None:
@@ -295,15 +299,29 @@ class PostgreSQLBackend(DatabaseBackend):
         return f"{column} = ANY({placeholder}::text[])"
 
 
-# Global database instance
+# Global database instance with lock for thread-safe initialization
 _db: Optional[DatabaseBackend] = None
+_db_lock = asyncio.Lock()
 
 
 async def get_db() -> DatabaseBackend:
-    """Get or initialize the database backend."""
+    """Get or initialize the database backend.
+
+    Uses double-checked locking pattern to prevent race conditions
+    during initialization while minimizing lock contention.
+    """
     global _db
 
-    if _db is None:
+    # Fast path: already initialized
+    if _db is not None:
+        return _db
+
+    # Slow path: acquire lock and initialize
+    async with _db_lock:
+        # Double-check after acquiring lock
+        if _db is not None:
+            return _db
+
         backend = get_backend()
 
         if backend == Backend.SQLITE:
@@ -314,10 +332,17 @@ async def get_db() -> DatabaseBackend:
                 params = get_postgresql_params()
                 _db = PostgreSQLBackend(params)
             except ValueError as e:
-                # Fall back to SQLite if PostgreSQL not configured
-                import sys
-                print(f"PostgreSQL not configured, falling back to SQLite: {e}", file=sys.stderr)
-                _db = SQLiteBackend(get_sqlite_path())
+                # Only fall back to SQLite if explicitly allowed
+                allow_fallback = os.environ.get("WORKLOG_ALLOW_FALLBACK", "").lower() in ("1", "true", "yes")
+                if allow_fallback:
+                    print(f"WARNING: PostgreSQL not configured, falling back to SQLite: {e}", file=sys.stderr)
+                    _db = SQLiteBackend(get_sqlite_path())
+                else:
+                    raise ValueError(
+                        f"PostgreSQL configuration error: {e}\n"
+                        "Set WORKLOG_ALLOW_FALLBACK=1 to allow SQLite fallback, "
+                        "or fix PostgreSQL configuration."
+                    )
 
         await _db.connect()
 

@@ -8,6 +8,8 @@ Backend selection:
 - PostgreSQL: Set DATABASE_URL or PGHOST environment variables
 """
 
+import re
+from contextlib import asynccontextmanager
 from typing import Optional
 from fastmcp import FastMCP
 
@@ -20,7 +22,103 @@ from worklog_mcp.config import (
     TASK_TYPES,
     KB_CATEGORIES,
 )
-from worklog_mcp.database import get_db, UniqueViolationError
+from worklog_mcp.database import get_db, close_db, UniqueViolationError
+
+
+# Column whitelist per table - prevents SQL injection via column names
+TABLE_COLUMNS = {
+    "memories": {
+        "id", "key", "content", "summary", "memory_type", "importance",
+        "status", "tags", "source_agent", "system", "access_count",
+        "last_accessed", "promoted_at", "created_at"
+    },
+    "knowledge_base": {
+        "id", "category", "title", "content", "tags", "source_agent",
+        "system", "is_protocol", "created_at", "updated_at"
+    },
+    "entries": {
+        "id", "timestamp", "agent", "task_type", "title", "details",
+        "decision_rationale", "outcome", "tags", "related_files"
+    },
+    "research": {
+        "id", "source_type", "title", "summary", "key_points",
+        "relevance_score", "tags", "status", "created_at"
+    },
+    "agent_chat": {
+        "id", "from_agent", "to_agent", "message", "context", "priority",
+        "status", "parent_id", "response", "created_at", "read_at", "resolved_at"
+    },
+    "issues": {
+        "id", "project", "title", "description", "status", "tags",
+        "source_agent", "created_at"
+    },
+    "error_patterns": {
+        "id", "error_signature", "error_message", "platform", "language",
+        "root_cause", "resolution", "prevention_tip", "tags", "created_at"
+    },
+}
+
+
+def _validate_columns(columns: str, table: str) -> tuple[bool, str]:
+    """Validate column names against whitelist.
+
+    Args:
+        columns: Comma-separated column names or "*"
+        table: Table name to validate against
+
+    Returns:
+        Tuple of (is_valid, error_message_or_sanitized_columns)
+    """
+    if columns.strip() == "*":
+        return True, "*"
+
+    allowed = TABLE_COLUMNS.get(table, set())
+    requested = [c.strip().lower() for c in columns.split(",")]
+
+    invalid = [c for c in requested if c not in allowed]
+    if invalid:
+        return False, f"Invalid columns: {invalid}. Allowed: {sorted(allowed)}"
+
+    return True, ", ".join(requested)
+
+
+def _validate_order_by(order_by: str, table: str) -> tuple[bool, str]:
+    """Validate ORDER BY clause against whitelist.
+
+    Args:
+        order_by: Column name with optional ASC/DESC
+        table: Table name to validate against
+
+    Returns:
+        Tuple of (is_valid, error_message_or_sanitized_order_by)
+    """
+    if not order_by:
+        return True, ""
+
+    # Parse "column_name DESC" or "column_name ASC" or just "column_name"
+    parts = order_by.strip().split()
+    if len(parts) > 2:
+        return False, "Invalid order_by format. Use 'column' or 'column ASC/DESC'"
+
+    column = parts[0].lower()
+    direction = parts[1].upper() if len(parts) == 2 else "ASC"
+
+    if direction not in ("ASC", "DESC"):
+        return False, f"Invalid sort direction: {direction}. Use ASC or DESC"
+
+    allowed = TABLE_COLUMNS.get(table, set())
+    if column not in allowed:
+        return False, f"Invalid order_by column: {column}. Allowed: {sorted(allowed)}"
+
+    return True, f"{column} {direction}"
+
+
+@asynccontextmanager
+async def lifespan(app):
+    """Lifespan context manager for connection pool cleanup."""
+    yield
+    await close_db()
+
 
 mcp = FastMCP(
     "worklog-mcp",
@@ -28,6 +126,7 @@ mcp = FastMCP(
     "Use query_table for flexible queries, search_knowledge for full-text search, "
     "recall_context at task start to load relevant context, store_memory for facts, "
     "and log_entry for work tracking. Supports SQLite (default) and PostgreSQL.",
+    lifespan=lifespan,
 )
 
 
@@ -48,7 +147,9 @@ def _build_placeholders(count: int, backend: Backend) -> list[str]:
 async def query_table(
     table: str,
     columns: str = "*",
-    where: Optional[str] = None,
+    filter_column: Optional[str] = None,
+    filter_op: str = "=",
+    filter_value: Optional[str] = None,
     order_by: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
@@ -56,10 +157,12 @@ async def query_table(
     """Query any table in the worklog database with filtering and pagination.
 
     Args:
-        table: Table name (memories, knowledge_base, entries, research)
+        table: Table name (memories, knowledge_base, entries, research, agent_chat, issues, error_patterns)
         columns: Comma-separated column names or * for all
-        where: SQL WHERE clause (without 'WHERE' keyword), e.g. "status='promoted'"
-        order_by: Column to order by, e.g. "created_at DESC"
+        filter_column: Column to filter on (validated against whitelist)
+        filter_op: Filter operator (=, !=, >, <, >=, <=, LIKE, ILIKE)
+        filter_value: Value to filter by (safely parameterized)
+        order_by: Column to order by with direction, e.g. "created_at DESC"
         limit: Maximum rows to return (default 20, max 100)
         offset: Number of rows to skip for pagination
 
@@ -69,28 +172,61 @@ async def query_table(
     if table not in TABLES:
         return {"error": f"Invalid table. Must be one of: {TABLES}"}
 
+    # Validate columns
+    valid, result = _validate_columns(columns, table)
+    if not valid:
+        return {"error": result}
+    safe_columns = result
+
+    # Validate order_by
+    valid, result = _validate_order_by(order_by or "", table)
+    if not valid:
+        return {"error": result}
+    safe_order_by = result
+
+    # Validate filter_column if provided
+    allowed_ops = {"=", "!=", ">", "<", ">=", "<=", "LIKE", "ILIKE"}
+    if filter_column:
+        allowed = TABLE_COLUMNS.get(table, set())
+        if filter_column.lower() not in allowed:
+            return {"error": f"Invalid filter_column: {filter_column}. Allowed: {sorted(allowed)}"}
+        if filter_op.upper() not in allowed_ops:
+            return {"error": f"Invalid filter_op: {filter_op}. Allowed: {sorted(allowed_ops)}"}
+
     limit = min(limit, 100)
     db = await get_db()
+    backend = get_backend()
 
-    # Build query
-    query = f"SELECT {columns} FROM {table}"
+    # Build parameterized query
+    query = f"SELECT {safe_columns} FROM {table}"
     count_query = f"SELECT COUNT(*) as total FROM {table}"
+    params = []
 
-    if where:
-        query += f" WHERE {where}"
-        count_query += f" WHERE {where}"
+    if filter_column and filter_value is not None:
+        p1 = db.placeholder(1)
+        op = filter_op.upper()
+        col = filter_column.lower()
 
-    if order_by:
-        query += f" ORDER BY {order_by}"
+        if op == "ILIKE":
+            where_clause = db.ilike(col, p1)
+        else:
+            where_clause = f"{col} {op} {p1}"
+
+        query += f" WHERE {where_clause}"
+        count_query += f" WHERE {where_clause}"
+        params.append(filter_value)
+
+    if safe_order_by:
+        query += f" ORDER BY {safe_order_by}"
 
     query += f" LIMIT {limit} OFFSET {offset}"
 
     # Get total count
-    count_row = await db.fetchone(count_query)
+    count_row = await db.fetchone(count_query, *params) if params else await db.fetchone(count_query)
     total = count_row["total"] if count_row else 0
 
     # Get rows
-    rows = await db.fetchall(query)
+    rows = await db.fetchall(query, *params) if params else await db.fetchall(query)
 
     return {
         "rows": rows,
