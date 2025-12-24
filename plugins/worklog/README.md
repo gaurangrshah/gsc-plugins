@@ -2,7 +2,7 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions.
 
-**Version:** 1.6.0
+**Version:** 1.6.1
 
 ## Overview
 
