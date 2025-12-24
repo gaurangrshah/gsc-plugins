@@ -528,7 +528,7 @@ async def get_memory(key: str) -> dict:
     """Get a memory by its unique key.
 
     Args:
-        key: The memory key (e.g., 'ctx_jarvis_20251215_ssh-setup')
+        key: The memory key (e.g., 'ctx_claude_20251215_ssh-setup')
 
     Returns:
         Full memory with all fields

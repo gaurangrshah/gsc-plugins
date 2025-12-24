@@ -403,7 +403,7 @@ WHERE created_at > datetime('now', '-7 days');"
 # Action: Create decisions/2025-12-14-jwt-auth-strategy.md with frontmatter
 
 # 3. Update insights.md
-echo "**[Score: 1] | 2025-12-14 | jarvis | Docker Compose**
+echo "**[Score: 1] | 2025-12-14 | claude | Docker Compose**
 Use override files for environment-specific config. Source: worklog #47" >> "$KNOWLEDGE_BASE/insights.md"
 
 # 4. Create decision doc with frontmatter

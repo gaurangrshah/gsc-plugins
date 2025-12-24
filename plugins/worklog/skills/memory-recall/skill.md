@@ -73,7 +73,7 @@ sqlite3 "$DB" "SELECT title, content FROM knowledge_base WHERE is_protocol = 1 O
 
 ```bash
 # By agent
-sqlite3 "$DB" "SELECT timestamp, title, outcome FROM entries WHERE agent = 'jarvis' ORDER BY timestamp DESC LIMIT 20;"
+sqlite3 "$DB" "SELECT timestamp, title, outcome FROM entries WHERE agent = 'claude' ORDER BY timestamp DESC LIMIT 20;"
 
 # By task type
 sqlite3 "$DB" "SELECT timestamp, agent, title FROM entries WHERE task_type = 'debugging' ORDER BY timestamp DESC LIMIT 10;"
@@ -141,7 +141,7 @@ psql -t -c "SELECT title, content FROM knowledge_base WHERE is_protocol = true O
 
 ```bash
 # By agent
-psql -t -c "SELECT timestamp, title, outcome FROM entries WHERE agent = 'jarvis' ORDER BY timestamp DESC LIMIT 20;"
+psql -t -c "SELECT timestamp, title, outcome FROM entries WHERE agent = 'claude' ORDER BY timestamp DESC LIMIT 20;"
 
 # By task type
 psql -t -c "SELECT timestamp, agent, title FROM entries WHERE task_type = 'debugging' ORDER BY timestamp DESC LIMIT 10;"
@@ -187,7 +187,7 @@ search_knowledge(query="topic", tables="knowledge_base,entries")
 recall_context(topic="docker deployment", min_importance=5)
 
 # Query specific table
-query_table(table="entries", where="agent='jarvis'", limit=10)
+query_table(table="entries", where="agent='claude'", limit=10)
 
 # Get recent entries
 get_recent_entries(days=7, limit=20)
