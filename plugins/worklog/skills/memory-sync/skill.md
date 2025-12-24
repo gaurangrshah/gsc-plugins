@@ -86,8 +86,8 @@ ORDER BY importance DESC;
 
 **PostgreSQL:**
 ```sql
--- Knowledge added in last 7 days (includes gitea_url if available)
-SELECT id, category, title, content, tags, created_at, gitea_url
+-- Knowledge added in last 7 days (includes source_url if available)
+SELECT id, category, title, content, tags, created_at, source_url
 FROM knowledge_base
 WHERE created_at > NOW() - INTERVAL '7 days'
 ORDER BY created_at DESC;

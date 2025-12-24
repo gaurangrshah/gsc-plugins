@@ -125,6 +125,7 @@ class SQLiteBackend(DatabaseBackend):
             source_agent TEXT,
             system TEXT DEFAULT 'shared',
             is_protocol INTEGER DEFAULT 0,
+            source_url TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             UNIQUE(category, title)

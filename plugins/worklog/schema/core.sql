@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS knowledge_base (
     source_agent TEXT,
     is_protocol INTEGER DEFAULT 0,
     version INTEGER DEFAULT 1,
-    system TEXT DEFAULT 'shared'
+    system TEXT DEFAULT 'shared',
+    source_url TEXT                          -- Optional: external URL reference
 );
 
 CREATE INDEX IF NOT EXISTS idx_kb_category ON knowledge_base(category);
