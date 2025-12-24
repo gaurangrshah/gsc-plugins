@@ -321,7 +321,13 @@ async def search_knowledge(
         else:
             continue
 
-        rows = await db.fetchall(sql, search_term, limit)
+        # SQLite uses positional placeholders, so we need to pass search_term 4 times
+        # (once for each LIKE clause) plus limit
+        if backend == Backend.SQLITE:
+            rows = await db.fetchall(sql, search_term, search_term, search_term, search_term, limit)
+        else:
+            # PostgreSQL can reuse $1 placeholder
+            rows = await db.fetchall(sql, search_term, limit)
         results[table] = rows
 
     return {

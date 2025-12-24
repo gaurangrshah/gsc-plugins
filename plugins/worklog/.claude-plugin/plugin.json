@@ -1,6 +1,6 @@
 {
   "name": "worklog",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Cross-session knowledge persistence with SQLite (default) or PostgreSQL. Store learnings, recall context, and maintain continuity across Claude Code sessions. Includes MCP server for programmatic access, skills for guided workflows, and hooks for automation.",
   "author": {
     "name": "gs"
@@ -20,6 +20,7 @@
     "hooks",
     "automation",
     "mcp",
-    "mcp-server"
+    "mcp-server",
+    "security"
   ]
 }

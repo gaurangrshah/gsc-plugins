@@ -543,6 +543,7 @@ system_name: my-system
 | `PGHOST`, `PGPORT`, etc. | - | Individual PostgreSQL settings |
 | `WORKLOG_PROFILE` | `standard` | Integration level |
 | `WORKLOG_MODE` | `local` | `local` or `shared` |
+| `WORKLOG_ALLOW_FALLBACK` | `false` | Allow SQLite fallback if PostgreSQL fails |
 
 ### Backend Auto-Detection
 
@@ -735,6 +736,56 @@ worklog/
 └── README.md
 ```
 
+## Security Considerations
+
+The MCP server implements several security measures to protect against common vulnerabilities.
+
+### SQL Injection Protection
+
+All user inputs are validated and parameterized:
+
+| Input | Protection |
+|-------|------------|
+| `table` | Validated against allowed table list |
+| `columns` | Validated against per-table column whitelist |
+| `order_by` | Validated column + direction (ASC/DESC only) |
+| `filter_value` | Parameterized queries (never interpolated) |
+| `filter_op` | Restricted to: `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `ILIKE` |
+
+**Example - Safe filtering:**
+```python
+# Instead of raw SQL: WHERE status='promoted'
+# Use structured parameters:
+query_table(table="memories", filter_column="status", filter_op="=", filter_value="promoted")
+```
+
+### Connection Security
+
+| Feature | Implementation |
+|---------|----------------|
+| Connection timeout | 30 seconds (prevents hanging) |
+| Query timeout | 60 seconds (prevents long-running queries) |
+| Pool cleanup | Lifespan context manager ensures proper shutdown |
+| Race condition prevention | asyncio.Lock with double-checked locking |
+
+### PostgreSQL Configuration
+
+| Environment Variable | Security Note |
+|---------------------|---------------|
+| `DATABASE_URL` | Contains password - never log this value |
+| `PGPASSWORD` | Required for PostgreSQL - use secrets management |
+| `PGPORT` | Validated range: 1-65535 |
+| `WORKLOG_ALLOW_FALLBACK` | Must be explicitly set to allow SQLite fallback |
+
+**Important:** Silent fallback to SQLite is disabled by default. If PostgreSQL is configured but fails to connect, the server will error rather than silently use SQLite. Set `WORKLOG_ALLOW_FALLBACK=1` to allow fallback behavior.
+
+### Best Practices
+
+1. **Credentials**: Use environment variables or secrets management, never hardcode
+2. **Network**: Use TLS for PostgreSQL connections in production
+3. **Access**: Apply principle of least privilege to database users
+4. **Logging**: The `_get_dsn()` function is internal - never log its output
+
 ## Troubleshooting
 
 ### "unable to open database file"
@@ -755,6 +806,16 @@ chmod 775 /path/to/db/directory
 ```
 
 ## Version History
+
+### 1.6.1
+- **Security Hardening**: Comprehensive security review and fixes
+  - SQL injection prevention via column whitelists and parameterized queries
+  - Connection pool lifecycle management with lifespan context manager
+  - Race condition fix in database initialization (asyncio.Lock)
+  - Connection and query timeouts for PostgreSQL (30s/60s)
+  - Explicit fallback control via `WORKLOG_ALLOW_FALLBACK`
+  - Port validation for PostgreSQL configuration
+  - DSN function marked internal to prevent credential logging
 
 ### 1.6.0
 - **Dual Database Backend**: Support for both SQLite (default) and PostgreSQL

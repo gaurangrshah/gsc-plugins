@@ -8,7 +8,7 @@ A collection of Claude Code plugins for enhanced development workflows.
 |--------|---------|-------------|
 | [webgen](plugins/webgen/) | 1.6.0 | Natural language to production-ready websites and landing pages |
 | [appgen](plugins/appgen/) | 1.1.0 | Full-stack applications and APIs from natural language |
-| [worklog](plugins/worklog/) | 1.6.0 | Cross-session knowledge persistence (SQLite/PostgreSQL) |
+| [worklog](plugins/worklog/) | 1.6.1 | Cross-session knowledge persistence (SQLite/PostgreSQL) |
 | [taskflow](plugins/taskflow/) | 1.1.0 | AI-powered task management with issue tracker integration |
 | [docs](plugins/docs/) | 1.0.0 | Documentation management and quality assurance |
 
