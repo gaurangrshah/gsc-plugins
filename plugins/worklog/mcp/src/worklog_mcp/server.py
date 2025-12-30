@@ -2196,6 +2196,328 @@ async def get_topic_hierarchy(
 
 
 
+# =============================================================================
+# CURATION AUTOMATION TOOLS - INFA-295
+# =============================================================================
+
+@mcp.tool()
+async def get_curation_metrics(
+    days: int = 7,
+) -> dict:
+    """Get curation quality metrics and health indicators.
+
+    Returns dashboard data for monitoring curation health including:
+    - Recent curation activity
+    - Data quality indicators
+    - Alert thresholds
+    - Recommendations
+
+    Args:
+        days: Number of days to analyze (default 7)
+
+    Returns:
+        dict with metrics, alerts, and recommendations
+    """
+    import json
+    from datetime import datetime, timedelta
+
+    db = await get_db()
+    backend = get_backend()
+
+    metrics = {
+        "generated_at": datetime.now().isoformat(),
+        "period_days": days,
+        "table_counts": {},
+        "curation_activity": {},
+        "quality_indicators": {},
+        "alerts": [],
+        "recommendations": [],
+    }
+
+    # Table counts
+    tables = [
+        "memories", "knowledge_base", "entries",
+        "tag_taxonomy", "relationships", "topic_index",
+        "topic_entries", "duplicate_candidates", "curation_history"
+    ]
+
+    for table in tables:
+        try:
+            result = await db.fetchone(f"SELECT COUNT(*) as cnt FROM {table}")
+            metrics["table_counts"][table] = result["cnt"] if result else 0
+        except Exception:
+            metrics["table_counts"][table] = -1  # Table doesn't exist
+
+    # Curation activity (last N days)
+    if backend == Backend.SQLITE:
+        activity = await db.fetchall(
+            """SELECT operation, COUNT(*) as runs,
+                      SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful
+               FROM curation_history
+               WHERE run_at > datetime('now', ?)
+               GROUP BY operation""",
+            f"-{days} days"
+        )
+        last_run = await db.fetchone(
+            "SELECT run_at, operation, success FROM curation_history ORDER BY run_at DESC LIMIT 1"
+        )
+    else:
+        activity = await db.fetchall(
+            """SELECT operation, COUNT(*) as runs,
+                      SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful
+               FROM curation_history
+               WHERE run_at > NOW() - INTERVAL '%s days'
+               GROUP BY operation""" % days
+        )
+        last_run = await db.fetchone(
+            "SELECT run_at, operation, success FROM curation_history ORDER BY run_at DESC LIMIT 1"
+        )
+
+    metrics["curation_activity"] = {
+        "operations": [dict(a) for a in activity] if activity else [],
+        "last_run": {
+            "timestamp": str(last_run["run_at"]) if last_run else None,
+            "operation": last_run["operation"] if last_run else None,
+            "success": last_run["success"] if last_run else None,
+        } if last_run else None,
+    }
+
+    # Quality indicators
+    # 1. Orphan rate (entries without topics or relationships)
+    if backend == Backend.SQLITE:
+        orphan_memories = await db.fetchone(
+            """SELECT COUNT(*) as cnt FROM memories m
+               WHERE importance >= 5
+               AND NOT EXISTS (SELECT 1 FROM topic_entries te
+                              WHERE te.entry_table = 'memories' AND te.entry_id = m.id)
+               AND NOT EXISTS (SELECT 1 FROM relationships r
+                              WHERE (r.source_table = 'memories' AND r.source_id = m.id)
+                                 OR (r.target_table = 'memories' AND r.target_id = m.id))"""
+        )
+        total_important = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM memories WHERE importance >= 5"
+        )
+    else:
+        orphan_memories = await db.fetchone(
+            """SELECT COUNT(*) as cnt FROM memories m
+               WHERE importance >= 5
+               AND NOT EXISTS (SELECT 1 FROM topic_entries te
+                              WHERE te.entry_table = 'memories' AND te.entry_id = m.id)
+               AND NOT EXISTS (SELECT 1 FROM relationships r
+                              WHERE (r.source_table = 'memories' AND r.source_id = m.id)
+                                 OR (r.target_table = 'memories' AND r.target_id = m.id))"""
+        )
+        total_important = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM memories WHERE importance >= 5"
+        )
+
+    orphan_count = orphan_memories["cnt"] if orphan_memories else 0
+    total_count = total_important["cnt"] if total_important else 1
+    orphan_rate = round(orphan_count / max(total_count, 1) * 100, 1)
+
+    # 2. Pending duplicates
+    if backend == Backend.SQLITE:
+        pending_dupes = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM duplicate_candidates WHERE status = 'pending'"
+        )
+    else:
+        pending_dupes = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM duplicate_candidates WHERE status = 'pending'"
+        )
+
+    # 3. Tag coverage (entries with vs without tags)
+    if backend == Backend.SQLITE:
+        tagged = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM memories WHERE tags IS NOT NULL AND tags != ''"
+        )
+        untagged = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM memories WHERE tags IS NULL OR tags = ''"
+        )
+    else:
+        tagged = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM memories WHERE tags IS NOT NULL AND tags != ''"
+        )
+        untagged = await db.fetchone(
+            "SELECT COUNT(*) as cnt FROM memories WHERE tags IS NULL OR tags = ''"
+        )
+
+    tagged_count = tagged["cnt"] if tagged else 0
+    untagged_count = untagged["cnt"] if untagged else 0
+    tag_coverage = round(tagged_count / max(tagged_count + untagged_count, 1) * 100, 1)
+
+    # 4. Staging memories awaiting promotion
+    if backend == Backend.SQLITE:
+        staging = await db.fetchone(
+            """SELECT COUNT(*) as cnt FROM memories
+               WHERE status = 'staging' AND importance >= 6
+               AND created_at < datetime('now', '-2 days')"""
+        )
+    else:
+        staging = await db.fetchone(
+            """SELECT COUNT(*) as cnt FROM memories
+               WHERE status = 'staging' AND importance >= 6
+               AND created_at < NOW() - INTERVAL '2 days'"""
+        )
+
+    metrics["quality_indicators"] = {
+        "orphan_rate_pct": orphan_rate,
+        "orphan_count": orphan_count,
+        "pending_duplicates": pending_dupes["cnt"] if pending_dupes else 0,
+        "tag_coverage_pct": tag_coverage,
+        "untagged_entries": untagged_count,
+        "staging_awaiting_promotion": staging["cnt"] if staging else 0,
+        "topic_count": metrics["table_counts"].get("topic_index", 0),
+        "relationship_count": metrics["table_counts"].get("relationships", 0),
+    }
+
+    # Generate alerts
+    if orphan_rate > 30:
+        metrics["alerts"].append({
+            "severity": "warning",
+            "message": f"High orphan rate: {orphan_rate}% of important memories unlinked",
+            "action": "Run /curate orphans",
+        })
+
+    pending_dupe_count = pending_dupes["cnt"] if pending_dupes else 0
+    if pending_dupe_count > 10:
+        metrics["alerts"].append({
+            "severity": "warning",
+            "message": f"{pending_dupe_count} duplicate candidates pending review",
+            "action": "Run /curate duplicates",
+        })
+
+    staging_count = staging["cnt"] if staging else 0
+    if staging_count > 20:
+        metrics["alerts"].append({
+            "severity": "info",
+            "message": f"{staging_count} memories awaiting promotion",
+            "action": "Run /curate promote",
+        })
+
+    if tag_coverage < 50:
+        metrics["alerts"].append({
+            "severity": "warning",
+            "message": f"Low tag coverage: {tag_coverage}%",
+            "action": "Run /curate taxonomy",
+        })
+
+    # Check for stale curation
+    if metrics["curation_activity"]["last_run"]:
+        last_ts = metrics["curation_activity"]["last_run"]["timestamp"]
+        if last_ts:
+            # Simple staleness check
+            metrics["alerts"].append({
+                "severity": "info",
+                "message": f"Last curation: {last_ts}",
+                "action": "Consider scheduling regular curation",
+            })
+    else:
+        metrics["alerts"].append({
+            "severity": "warning",
+            "message": "No curation history found",
+            "action": "Run initial curation with /curate",
+        })
+
+    # Generate recommendations
+    if orphan_rate > 20:
+        metrics["recommendations"].append("Focus on linking orphan entries to topics")
+
+    if pending_dupe_count > 0:
+        metrics["recommendations"].append("Review and resolve duplicate candidates")
+
+    if tag_coverage < 70:
+        metrics["recommendations"].append("Improve tag coverage for better searchability")
+
+    if metrics["table_counts"].get("topic_index", 0) < 5:
+        metrics["recommendations"].append("Create more topics to organize knowledge")
+
+    return metrics
+
+
+@mcp.tool()
+async def get_curation_schedule() -> dict:
+    """Get recommended curation schedule based on current data volume.
+
+    Returns recommended frequencies for each curation operation
+    based on table sizes and activity levels.
+
+    Returns:
+        dict with schedule recommendations and cron expressions
+    """
+    db = await get_db()
+
+    # Get table counts for sizing
+    counts = {}
+    for table in ["memories", "knowledge_base", "entries"]:
+        try:
+            result = await db.fetchone(f"SELECT COUNT(*) as cnt FROM {table}")
+            counts[table] = result["cnt"] if result else 0
+        except Exception:
+            counts[table] = 0
+
+    total_entries = sum(counts.values())
+
+    # Determine frequency based on volume
+    if total_entries < 100:
+        frequency = "weekly"
+        cron = "0 2 * * 0"  # Sunday 2am
+    elif total_entries < 500:
+        frequency = "twice-weekly"
+        cron = "0 2 * * 0,3"  # Sunday and Wednesday 2am
+    elif total_entries < 2000:
+        frequency = "daily"
+        cron = "0 2 * * *"  # Daily 2am
+    else:
+        frequency = "twice-daily"
+        cron = "0 2,14 * * *"  # 2am and 2pm
+
+    schedule = {
+        "data_volume": {
+            "total_entries": total_entries,
+            "breakdown": counts,
+        },
+        "recommended_frequency": frequency,
+        "operations": {
+            "full_curation": {
+                "frequency": frequency,
+                "cron": cron,
+                "description": "Complete curation cycle (all phases)",
+            },
+            "tag_normalization": {
+                "frequency": "with_full" if total_entries < 500 else "daily",
+                "cron": "0 3 * * *" if total_entries >= 500 else None,
+                "description": "Normalize tags and update taxonomy",
+            },
+            "duplicate_detection": {
+                "frequency": "weekly",
+                "cron": "0 4 * * 0",
+                "description": "Scan for potential duplicates",
+            },
+            "memory_promotion": {
+                "frequency": "daily" if total_entries >= 200 else "weekly",
+                "cron": "0 5 * * *" if total_entries >= 200 else "0 5 * * 0",
+                "description": "Evaluate staging memories for promotion",
+            },
+        },
+        "setup_instructions": {
+            "systemd_timer": f"""# /etc/systemd/system/kb-curator.timer
+[Unit]
+Description=Knowledge Base Curation Timer
+
+[Timer]
+OnCalendar={cron.replace('0 ', '').replace(' * * ', ':00 ')}
+Persistent=true
+
+[Install]
+WantedBy=timers.target""",
+            "cron_entry": f"{cron} /path/to/curator-runner.sh >> /var/log/kb-curator.log 2>&1",
+        },
+    }
+
+    return schedule
+
+
+
 def main():
     """Run the MCP server."""
     mcp.run()
