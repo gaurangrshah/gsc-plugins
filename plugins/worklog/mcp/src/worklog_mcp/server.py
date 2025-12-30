@@ -1785,6 +1785,417 @@ async def log_curation_run(
 
 
 
+# =============================================================================
+# ENHANCED RETRIEVAL TOOLS - INFA-294
+# =============================================================================
+
+@mcp.tool()
+async def recall_topic(
+    topic_name: str,
+    include_entries: bool = True,
+    max_entries: int = 20,
+) -> dict:
+    """Recall a topic with its pre-computed summary and optionally linked entries.
+
+    This provides efficient context loading by returning curated topic summaries
+    instead of raw entry content, reducing token usage.
+
+    Args:
+        topic_name: Name of the topic to recall
+        include_entries: Whether to include linked entries (default True)
+        max_entries: Maximum entries to return if include_entries is True
+
+    Returns:
+        dict with topic summary, key terms, and optionally linked entries
+    """
+    db = await get_db()
+    backend = get_backend()
+    p1 = db.placeholder(1)
+
+    # Get topic
+    topic = await db.fetchone(
+        f"SELECT * FROM topic_index WHERE topic_name = {p1}",
+        topic_name
+    )
+
+    if not topic:
+        # Try partial match
+        if backend == Backend.SQLITE:
+            topic = await db.fetchone(
+                "SELECT * FROM topic_index WHERE topic_name LIKE ? ORDER BY entry_count DESC LIMIT 1",
+                f"%{topic_name}%"
+            )
+        else:
+            topic = await db.fetchone(
+                "SELECT * FROM topic_index WHERE topic_name ILIKE $1 ORDER BY entry_count DESC LIMIT 1",
+                f"%{topic_name}%"
+            )
+
+    if not topic:
+        return {"error": f"Topic '{topic_name}' not found", "suggestion": "Use create_topic to create it"}
+
+    result = {
+        "topic_name": topic["topic_name"],
+        "summary": topic.get("summary"),
+        "full_summary": topic.get("full_summary"),
+        "key_terms": topic.get("key_terms", []),
+        "entry_count": topic.get("entry_count", 0),
+        "last_curated": str(topic.get("last_curated")) if topic.get("last_curated") else None,
+    }
+
+    if include_entries and topic.get("entry_count", 0) > 0:
+        # Get linked entries with titles
+        if backend == Backend.SQLITE:
+            entries = await db.fetchall(
+                """SELECT te.entry_table, te.entry_id, te.relevance_score,
+                   CASE te.entry_table
+                     WHEN 'memories' THEN (SELECT key FROM memories WHERE id = te.entry_id)
+                     WHEN 'knowledge_base' THEN (SELECT title FROM knowledge_base WHERE id = te.entry_id)
+                     WHEN 'entries' THEN (SELECT title FROM entries WHERE id = te.entry_id)
+                   END as entry_title
+                   FROM topic_entries te
+                   WHERE te.topic_id = ?
+                   ORDER BY te.relevance_score DESC
+                   LIMIT ?""",
+                topic["id"], max_entries
+            )
+        else:
+            entries = await db.fetchall(
+                """SELECT te.entry_table, te.entry_id, te.relevance_score,
+                   CASE te.entry_table
+                     WHEN 'memories' THEN (SELECT key FROM memories WHERE id = te.entry_id)
+                     WHEN 'knowledge_base' THEN (SELECT title FROM knowledge_base WHERE id = te.entry_id)
+                     WHEN 'entries' THEN (SELECT title FROM entries WHERE id = te.entry_id)
+                   END as entry_title
+                   FROM topic_entries te
+                   WHERE te.topic_id = $1
+                   ORDER BY te.relevance_score DESC
+                   LIMIT $2""",
+                topic["id"], max_entries
+            )
+        result["entries"] = entries
+
+    return result
+
+
+@mcp.tool()
+async def find_related(
+    entry_table: str,
+    entry_id: int,
+    depth: int = 1,
+    relationship_types: Optional[str] = None,
+) -> dict:
+    """Traverse the relationship graph to find related entries.
+
+    Args:
+        entry_table: Source table (memories, knowledge_base, entries)
+        entry_id: Source entry ID
+        depth: How many hops to traverse (1-3, default 1)
+        relationship_types: Comma-separated types to filter (optional)
+
+    Returns:
+        dict with related entries organized by depth level
+    """
+    if entry_table not in ENTRY_TABLES:
+        return {"error": f"Invalid entry_table. Must be one of: {ENTRY_TABLES}"}
+
+    depth = max(1, min(3, depth))  # Clamp to 1-3
+    type_filter = [t.strip() for t in (relationship_types or "").split(",") if t.strip()]
+
+    db = await get_db()
+    backend = get_backend()
+
+    results = {"source": {"table": entry_table, "id": entry_id}, "levels": {}}
+    visited = {(entry_table, entry_id)}
+    current_level = [(entry_table, entry_id)]
+
+    for level in range(1, depth + 1):
+        next_level = []
+        level_results = []
+
+        for table, eid in current_level:
+            # Get outgoing relationships
+            if backend == Backend.SQLITE:
+                out_sql = """SELECT target_table, target_id, relationship_type, confidence
+                            FROM relationships
+                            WHERE source_table = ? AND source_id = ?"""
+                in_sql = """SELECT source_table, source_id, relationship_type, confidence
+                           FROM relationships
+                           WHERE target_table = ? AND target_id = ? AND bidirectional = 1"""
+                params = [table, eid]
+
+                if type_filter:
+                    placeholders = ",".join(["?" for _ in type_filter])
+                    out_sql += f" AND relationship_type IN ({placeholders})"
+                    in_sql += f" AND relationship_type IN ({placeholders})"
+                    params.extend(type_filter)
+
+                outgoing = await db.fetchall(out_sql, *params)
+                incoming = await db.fetchall(in_sql, *params)
+            else:
+                out_sql = """SELECT target_table, target_id, relationship_type, confidence
+                            FROM relationships
+                            WHERE source_table = $1 AND source_id = $2"""
+                in_sql = """SELECT source_table, source_id, relationship_type, confidence
+                           FROM relationships
+                           WHERE target_table = $1 AND target_id = $2 AND bidirectional = true"""
+
+                if type_filter:
+                    out_sql += " AND relationship_type = ANY($3)"
+                    in_sql += " AND relationship_type = ANY($3)"
+                    outgoing = await db.fetchall(out_sql, table, eid, type_filter)
+                    incoming = await db.fetchall(in_sql, table, eid, type_filter)
+                else:
+                    outgoing = await db.fetchall(out_sql, table, eid)
+                    incoming = await db.fetchall(in_sql, table, eid)
+
+            # Process outgoing
+            for row in outgoing:
+                target = (row["target_table"], row["target_id"])
+                if target not in visited:
+                    visited.add(target)
+                    next_level.append(target)
+                    level_results.append({
+                        "table": row["target_table"],
+                        "id": row["target_id"],
+                        "relationship": row["relationship_type"],
+                        "confidence": row["confidence"],
+                        "direction": "outgoing",
+                    })
+
+            # Process incoming (bidirectional)
+            for row in incoming:
+                source = (row["source_table"], row["source_id"])
+                if source not in visited:
+                    visited.add(source)
+                    next_level.append(source)
+                    level_results.append({
+                        "table": row["source_table"],
+                        "id": row["source_id"],
+                        "relationship": row["relationship_type"],
+                        "confidence": row["confidence"],
+                        "direction": "incoming",
+                    })
+
+        if level_results:
+            results["levels"][f"depth_{level}"] = level_results
+
+        current_level = next_level
+        if not current_level:
+            break
+
+    results["total_related"] = len(visited) - 1  # Exclude source
+    return results
+
+
+@mcp.tool()
+async def search_by_taxonomy(
+    category: Optional[str] = None,
+    tag: Optional[str] = None,
+    include_aliases: bool = True,
+    limit: int = 20,
+) -> dict:
+    """Search entries using the tag taxonomy for hierarchical tag matching.
+
+    Args:
+        category: Tag category to filter by (optional)
+        tag: Specific tag to search for (will match canonical and aliases)
+        include_aliases: Whether to match tag aliases (default True)
+        limit: Maximum entries to return
+
+    Returns:
+        dict with matching entries grouped by table
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    # First, resolve the tag to its canonical form and get aliases
+    tags_to_match = []
+
+    if tag:
+        p1 = db.placeholder(1)
+        tag_lower = tag.lower().strip()
+
+        # Check if it's a canonical tag
+        taxonomy = await db.fetchone(
+            f"SELECT * FROM tag_taxonomy WHERE LOWER(canonical_tag) = {p1}",
+            tag_lower
+        )
+
+        if not taxonomy and backend == Backend.POSTGRESQL:
+            # Check aliases
+            taxonomy = await db.fetchone(
+                "SELECT * FROM tag_taxonomy WHERE $1 = ANY(LOWER(aliases::text)::text[])",
+                tag_lower
+            )
+
+        if taxonomy:
+            tags_to_match.append(taxonomy["canonical_tag"])
+            if include_aliases and taxonomy.get("aliases"):
+                aliases = taxonomy["aliases"]
+                if isinstance(aliases, str):
+                    tags_to_match.extend([a.strip() for a in aliases.split(",")])
+                else:
+                    tags_to_match.extend(aliases)
+        else:
+            tags_to_match.append(tag)  # Use original if not in taxonomy
+
+    elif category:
+        # Get all tags in this category
+        if backend == Backend.SQLITE:
+            rows = await db.fetchall(
+                "SELECT canonical_tag, aliases FROM tag_taxonomy WHERE category = ?",
+                category
+            )
+        else:
+            rows = await db.fetchall(
+                "SELECT canonical_tag, aliases FROM tag_taxonomy WHERE category = $1",
+                category
+            )
+
+        for row in rows:
+            tags_to_match.append(row["canonical_tag"])
+            if include_aliases and row.get("aliases"):
+                aliases = row["aliases"]
+                if isinstance(aliases, str):
+                    tags_to_match.extend([a.strip() for a in aliases.split(",")])
+                else:
+                    tags_to_match.extend(aliases)
+
+    if not tags_to_match:
+        return {"error": "Must specify either category or tag", "tags_to_match": []}
+
+    results = {"tags_matched": tags_to_match, "memories": [], "knowledge_base": []}
+
+    # Build tag matching conditions
+    if backend == Backend.SQLITE:
+        conditions = " OR ".join([
+            f"tags = ? OR tags LIKE ? OR tags LIKE ? OR tags LIKE ?"
+            for _ in tags_to_match
+        ])
+        params = []
+        for t in tags_to_match:
+            params.extend([t, f"{t},%", f"%,{t},%", f"%,{t}"])
+
+        # Search memories
+        mem_sql = f"""SELECT id, key, summary, tags, importance
+                     FROM memories WHERE ({conditions})
+                     ORDER BY importance DESC LIMIT ?"""
+        params_mem = params + [limit]
+        results["memories"] = await db.fetchall(mem_sql, *params_mem)
+
+        # Search knowledge_base
+        kb_sql = f"""SELECT id, title, category, tags
+                    FROM knowledge_base WHERE ({conditions})
+                    ORDER BY updated_at DESC LIMIT ?"""
+        params_kb = params + [limit]
+        results["knowledge_base"] = await db.fetchall(kb_sql, *params_kb)
+    else:
+        # PostgreSQL - use ANY with array
+        mem_sql = """SELECT id, key, summary, tags, importance
+                    FROM memories
+                    WHERE EXISTS (
+                        SELECT 1 FROM unnest(string_to_array(tags, ',')) AS t
+                        WHERE LOWER(TRIM(t)) = ANY($1)
+                    )
+                    ORDER BY importance DESC LIMIT $2"""
+        results["memories"] = await db.fetchall(
+            mem_sql, [t.lower() for t in tags_to_match], limit
+        )
+
+        kb_sql = """SELECT id, title, category, tags
+                   FROM knowledge_base
+                   WHERE EXISTS (
+                       SELECT 1 FROM unnest(string_to_array(tags, ',')) AS t
+                       WHERE LOWER(TRIM(t)) = ANY($1)
+                   )
+                   ORDER BY updated_at DESC LIMIT $2"""
+        results["knowledge_base"] = await db.fetchall(
+            kb_sql, [t.lower() for t in tags_to_match], limit
+        )
+
+    results["total"] = len(results["memories"]) + len(results["knowledge_base"])
+    return results
+
+
+@mcp.tool()
+async def get_topic_hierarchy(
+    root_topic: Optional[str] = None,
+) -> dict:
+    """Get the topic hierarchy showing all topics and their entry counts.
+
+    Args:
+        root_topic: Optional root topic to start from (returns full tree if None)
+
+    Returns:
+        dict with topic tree structure and statistics
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    # Get all topics
+    if backend == Backend.SQLITE:
+        topics = await db.fetchall(
+            "SELECT id, topic_name, summary, entry_count, key_terms FROM topic_index ORDER BY entry_count DESC"
+        )
+    else:
+        topics = await db.fetchall(
+            "SELECT id, topic_name, summary, entry_count, key_terms FROM topic_index ORDER BY entry_count DESC"
+        )
+
+    if root_topic:
+        # Filter to specific topic and its related topics
+        root = next((t for t in topics if t["topic_name"].lower() == root_topic.lower()), None)
+        if not root:
+            return {"error": f"Topic '{root_topic}' not found"}
+
+        # Find topics that share entries with root topic
+        if backend == Backend.SQLITE:
+            related_ids = await db.fetchall(
+                """SELECT DISTINCT te2.topic_id
+                   FROM topic_entries te1
+                   JOIN topic_entries te2 ON te1.entry_table = te2.entry_table
+                                          AND te1.entry_id = te2.entry_id
+                   WHERE te1.topic_id = ? AND te2.topic_id != ?""",
+                root["id"], root["id"]
+            )
+        else:
+            related_ids = await db.fetchall(
+                """SELECT DISTINCT te2.topic_id
+                   FROM topic_entries te1
+                   JOIN topic_entries te2 ON te1.entry_table = te2.entry_table
+                                          AND te1.entry_id = te2.entry_id
+                   WHERE te1.topic_id = $1 AND te2.topic_id != $1""",
+                root["id"]
+            )
+
+        related_topic_ids = {row["topic_id"] for row in related_ids}
+        related_topic_ids.add(root["id"])
+
+        topics = [t for t in topics if t["id"] in related_topic_ids]
+
+    # Build hierarchy structure
+    hierarchy = {
+        "topics": [
+            {
+                "name": t["topic_name"],
+                "summary": t.get("summary"),
+                "entry_count": t.get("entry_count", 0),
+                "key_terms": t.get("key_terms", []),
+            }
+            for t in topics
+        ],
+        "total_topics": len(topics),
+        "total_entries": sum(t.get("entry_count", 0) for t in topics),
+    }
+
+    if root_topic:
+        hierarchy["root_topic"] = root_topic
+
+    return hierarchy
+
+
+
 def main():
     """Run the MCP server."""
     mcp.run()
