@@ -147,6 +147,8 @@ def _get_dsn() -> str:
 
 # Tables available in the database
 TABLES = ["memories", "knowledge_base", "entries", "research", "agent_chat",
+          "tag_taxonomy", "relationships", "topic_index", "topic_entries",
+          "duplicate_candidates", "promotion_history", "curation_history",
           "issues", "error_patterns"]
 
 # Valid agent names for chat
@@ -177,4 +179,18 @@ TASK_TYPES = [
 KB_CATEGORIES = [
     "system-administration", "development", "infrastructure",
     "decisions", "projects", "protocols"
+]
+
+# Curation constants (INFA-291)
+RELATIONSHIP_TYPES = [
+    "relates_to", "supersedes", "implements", "documents",
+    "duplicate_of", "depends_on", "parent_of", "child_of"
+]
+
+ENTRY_TABLES = ["memories", "knowledge_base", "entries"]
+
+CURATION_OPERATIONS = [
+    "tag_normalization", "relationship_discovery", "topic_indexing",
+    "duplicate_detection", "memory_promotion", "full_curation",
+    "schema_migration", "schema_migration_triggers"
 ]

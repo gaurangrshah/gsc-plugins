@@ -21,6 +21,9 @@ from worklog_mcp.config import (
     MEMORY_STATUSES,
     TASK_TYPES,
     KB_CATEGORIES,
+    RELATIONSHIP_TYPES,
+    ENTRY_TABLES,
+    CURATION_OPERATIONS,
 )
 from worklog_mcp.database import get_db, close_db, UniqueViolationError
 
@@ -56,6 +59,35 @@ TABLE_COLUMNS: dict[str, frozenset[str]] = {
     "error_patterns": frozenset({
         "id", "error_signature", "error_message", "platform", "language",
         "root_cause", "resolution", "prevention_tip", "tags", "created_at"
+    }),
+    # Curation tables (INFA-291)
+    "tag_taxonomy": frozenset({
+        "id", "canonical_tag", "aliases", "category", "description",
+        "usage_count", "created_at", "updated_at"
+    }),
+    "relationships": frozenset({
+        "id", "source_table", "source_id", "target_table", "target_id",
+        "relationship_type", "confidence", "bidirectional", "created_by", "created_at"
+    }),
+    "topic_index": frozenset({
+        "id", "topic_name", "summary", "full_summary", "key_terms",
+        "content_size", "entry_count", "last_curated", "created_at", "updated_at"
+    }),
+    "topic_entries": frozenset({
+        "id", "topic_id", "entry_table", "entry_id", "relevance_score", "added_at"
+    }),
+    "duplicate_candidates": frozenset({
+        "id", "entry1_table", "entry1_id", "entry2_table", "entry2_id",
+        "similarity_score", "detection_method", "status", "reviewed_by",
+        "reviewed_at", "merge_target_id", "created_at"
+    }),
+    "promotion_history": frozenset({
+        "id", "memory_id", "from_status", "to_status", "reason",
+        "score_snapshot", "promoted_by", "created_at"
+    }),
+    "curation_history": frozenset({
+        "id", "run_at", "operation", "agent", "stats",
+        "duration_seconds", "success", "error_message"
     }),
 }
 
@@ -1141,6 +1173,616 @@ async def check_replies(
         "count": len(rows),
         "agent": agent,
     }
+
+
+# =============================================================================
+# CURATION TOOLS - INFA-291
+# =============================================================================
+
+@mcp.tool()
+async def normalize_tag(tag: str) -> dict:
+    """Normalize a tag to its canonical form using tag_taxonomy.
+
+    Args:
+        tag: The tag to normalize
+
+    Returns:
+        dict with canonical_tag, was_alias, and taxonomy entry if found
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    tag_lower = tag.lower().strip()
+
+    # First check if it's a canonical tag
+    p1 = db.placeholder(1)
+    row = await db.fetchone(
+        f"SELECT * FROM tag_taxonomy WHERE LOWER(canonical_tag) = {p1}",
+        tag_lower
+    )
+
+    if row:
+        return {
+            "found": True,
+            "canonical_tag": row["canonical_tag"],
+            "was_alias": False,
+            "category": row.get("category"),
+            "description": row.get("description"),
+        }
+
+    # Check if it's an alias
+    if backend == Backend.SQLITE:
+        # SQLite: Check if tag is in comma-separated aliases or JSON array
+        rows = await db.fetchall("SELECT * FROM tag_taxonomy")
+        for r in rows:
+            aliases = r.get("aliases", [])
+            if isinstance(aliases, str):
+                alias_list = [a.strip().lower() for a in aliases.split(",")]
+            else:
+                alias_list = [a.lower() for a in (aliases or [])]
+            if tag_lower in alias_list:
+                return {
+                    "found": True,
+                    "canonical_tag": r["canonical_tag"],
+                    "was_alias": True,
+                    "original_tag": tag,
+                    "category": r.get("category"),
+                }
+    else:
+        # PostgreSQL: Use array contains operator
+        row = await db.fetchone(
+            f"SELECT * FROM tag_taxonomy WHERE {p1} = ANY(LOWER(aliases::text)::text[])",
+            tag_lower
+        )
+        if row:
+            return {
+                "found": True,
+                "canonical_tag": row["canonical_tag"],
+                "was_alias": True,
+                "original_tag": tag,
+                "category": row.get("category"),
+            }
+
+    return {
+        "found": False,
+        "original_tag": tag,
+        "suggestion": "Consider adding this tag to tag_taxonomy"
+    }
+
+
+@mcp.tool()
+async def normalize_tags(tags: str) -> dict:
+    """Normalize multiple comma-separated tags to canonical forms.
+
+    Args:
+        tags: Comma-separated list of tags to normalize
+
+    Returns:
+        dict with normalized tags, mappings, and unknown tags
+    """
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()]
+
+    normalized = []
+    mappings = {}
+    unknown = []
+
+    for tag in tag_list:
+        result = await normalize_tag(tag)
+        if result.get("found"):
+            canonical = result["canonical_tag"]
+            normalized.append(canonical)
+            if result.get("was_alias"):
+                mappings[tag] = canonical
+        else:
+            unknown.append(tag)
+            normalized.append(tag)  # Keep original if not found
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_normalized = []
+    for t in normalized:
+        if t.lower() not in seen:
+            seen.add(t.lower())
+            unique_normalized.append(t)
+
+    return {
+        "normalized_tags": ",".join(unique_normalized),
+        "original_tags": tags,
+        "mappings": mappings,
+        "unknown_tags": unknown,
+        "tags_normalized": len(mappings),
+        "tags_unknown": len(unknown),
+    }
+
+
+@mcp.tool()
+async def add_tag_taxonomy(
+    canonical_tag: str,
+    aliases: Optional[str] = None,
+    category: Optional[str] = None,
+    description: Optional[str] = None,
+) -> dict:
+    """Add a new canonical tag to the taxonomy.
+
+    Args:
+        canonical_tag: The canonical (official) tag name
+        aliases: Comma-separated list of alternative spellings/names
+        category: Tag category for grouping
+        description: Description of what this tag represents
+
+    Returns:
+        dict with success status and tag id
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    alias_list = [a.strip() for a in (aliases or "").split(",") if a.strip()]
+
+    try:
+        if backend == Backend.SQLITE:
+            sql = """INSERT INTO tag_taxonomy
+                   (canonical_tag, aliases, category, description)
+                   VALUES (?, ?, ?, ?)"""
+            await db.execute(sql, canonical_tag, ",".join(alias_list), category, description)
+            row = await db.fetchone("SELECT last_insert_rowid() as id")
+            return {"success": True, "id": row["id"], "canonical_tag": canonical_tag}
+        else:
+            sql = """INSERT INTO tag_taxonomy
+                   (canonical_tag, aliases, category, description)
+                   VALUES ($1, $2::text[], $3, $4)
+                   RETURNING id"""
+            row = await db.fetchone(sql, canonical_tag, alias_list, category, description)
+            return {"success": True, "id": row["id"], "canonical_tag": canonical_tag}
+    except Exception as e:
+        if "unique" in str(e).lower():
+            return {"error": f"Tag '{canonical_tag}' already exists in taxonomy"}
+        raise
+
+
+@mcp.tool()
+async def add_relationship(
+    source_table: str,
+    source_id: int,
+    target_table: str,
+    target_id: int,
+    relationship_type: str,
+    confidence: float = 1.0,
+    bidirectional: bool = True,
+    created_by: Optional[str] = None,
+) -> dict:
+    """Add a relationship between two entries.
+
+    Args:
+        source_table: Source table name (memories, knowledge_base, entries)
+        source_id: Source entry ID
+        target_table: Target table name (memories, knowledge_base, entries)
+        target_id: Target entry ID
+        relationship_type: Type of relationship (relates_to, supersedes, implements, etc.)
+        confidence: Confidence score 0.0-1.0 (default 1.0)
+        bidirectional: Whether relationship goes both ways (default True)
+        created_by: Agent or user who created this relationship
+
+    Returns:
+        dict with success status and relationship id
+    """
+    # Validate table names
+    if source_table not in ENTRY_TABLES:
+        return {"error": f"Invalid source_table. Must be one of: {ENTRY_TABLES}"}
+    if target_table not in ENTRY_TABLES:
+        return {"error": f"Invalid target_table. Must be one of: {ENTRY_TABLES}"}
+
+    # Validate relationship type
+    if relationship_type not in RELATIONSHIP_TYPES:
+        return {"error": f"Invalid relationship_type. Must be one of: {RELATIONSHIP_TYPES}"}
+
+    # Validate confidence
+    confidence = max(0.0, min(1.0, confidence))
+
+    db = await get_db()
+    backend = get_backend()
+
+    try:
+        if backend == Backend.SQLITE:
+            sql = """INSERT INTO relationships
+                   (source_table, source_id, target_table, target_id,
+                    relationship_type, confidence, bidirectional, created_by)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
+            await db.execute(sql, source_table, source_id, target_table, target_id,
+                           relationship_type, confidence, bidirectional, created_by)
+            row = await db.fetchone("SELECT last_insert_rowid() as id")
+            return {"success": True, "id": row["id"]}
+        else:
+            sql = """INSERT INTO relationships
+                   (source_table, source_id, target_table, target_id,
+                    relationship_type, confidence, bidirectional, created_by)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                   RETURNING id"""
+            row = await db.fetchone(sql, source_table, source_id, target_table, target_id,
+                                   relationship_type, confidence, bidirectional, created_by)
+            return {"success": True, "id": row["id"]}
+    except Exception as e:
+        if "unique" in str(e).lower() or "duplicate" in str(e).lower():
+            return {"error": "This relationship already exists"}
+        if "Invalid source reference" in str(e) or "Invalid target reference" in str(e):
+            return {"error": str(e)}
+        raise
+
+
+@mcp.tool()
+async def get_relationships(
+    entry_table: str,
+    entry_id: int,
+    relationship_type: Optional[str] = None,
+    direction: str = "both",
+) -> dict:
+    """Get relationships for an entry.
+
+    Args:
+        entry_table: Table name of the entry (memories, knowledge_base, entries)
+        entry_id: Entry ID
+        relationship_type: Filter by relationship type (optional)
+        direction: "outgoing", "incoming", or "both" (default)
+
+    Returns:
+        dict with outgoing and incoming relationships
+    """
+    if entry_table not in ENTRY_TABLES:
+        return {"error": f"Invalid entry_table. Must be one of: {ENTRY_TABLES}"}
+
+    db = await get_db()
+    backend = get_backend()
+
+    results = {"outgoing": [], "incoming": [], "entry_table": entry_table, "entry_id": entry_id}
+
+    # Build base queries
+    if backend == Backend.SQLITE:
+        out_sql = """SELECT * FROM relationships
+                    WHERE source_table = ? AND source_id = ?"""
+        in_sql = """SELECT * FROM relationships
+                   WHERE target_table = ? AND target_id = ?"""
+        params = [entry_table, entry_id]
+
+        if relationship_type:
+            out_sql += " AND relationship_type = ?"
+            in_sql += " AND relationship_type = ?"
+            params.append(relationship_type)
+
+        if direction in ("outgoing", "both"):
+            if relationship_type:
+                results["outgoing"] = await db.fetchall(out_sql, entry_table, entry_id, relationship_type)
+            else:
+                results["outgoing"] = await db.fetchall(out_sql, entry_table, entry_id)
+
+        if direction in ("incoming", "both"):
+            if relationship_type:
+                results["incoming"] = await db.fetchall(in_sql, entry_table, entry_id, relationship_type)
+            else:
+                results["incoming"] = await db.fetchall(in_sql, entry_table, entry_id)
+    else:
+        out_sql = """SELECT * FROM relationships
+                    WHERE source_table = $1 AND source_id = $2"""
+        in_sql = """SELECT * FROM relationships
+                   WHERE target_table = $1 AND target_id = $2"""
+
+        if relationship_type:
+            out_sql += " AND relationship_type = $3"
+            in_sql += " AND relationship_type = $3"
+
+        if direction in ("outgoing", "both"):
+            if relationship_type:
+                results["outgoing"] = await db.fetchall(out_sql, entry_table, entry_id, relationship_type)
+            else:
+                results["outgoing"] = await db.fetchall(out_sql, entry_table, entry_id)
+
+        if direction in ("incoming", "both"):
+            if relationship_type:
+                results["incoming"] = await db.fetchall(in_sql, entry_table, entry_id, relationship_type)
+            else:
+                results["incoming"] = await db.fetchall(in_sql, entry_table, entry_id)
+
+    results["total"] = len(results["outgoing"]) + len(results["incoming"])
+    return results
+
+
+@mcp.tool()
+async def create_topic(
+    topic_name: str,
+    summary: Optional[str] = None,
+    key_terms: Optional[str] = None,
+) -> dict:
+    """Create a new topic in the topic index.
+
+    Args:
+        topic_name: Unique name for the topic
+        summary: Brief TLDR summary of the topic
+        key_terms: Comma-separated key terms for this topic
+
+    Returns:
+        dict with success status and topic id
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    term_list = [t.strip() for t in (key_terms or "").split(",") if t.strip()]
+
+    try:
+        if backend == Backend.SQLITE:
+            sql = """INSERT INTO topic_index (topic_name, summary, key_terms)
+                   VALUES (?, ?, ?)"""
+            await db.execute(sql, topic_name, summary, ",".join(term_list))
+            row = await db.fetchone("SELECT last_insert_rowid() as id")
+            return {"success": True, "id": row["id"], "topic_name": topic_name}
+        else:
+            sql = """INSERT INTO topic_index (topic_name, summary, key_terms)
+                   VALUES ($1, $2, $3::text[])
+                   RETURNING id"""
+            row = await db.fetchone(sql, topic_name, summary, term_list)
+            return {"success": True, "id": row["id"], "topic_name": topic_name}
+    except Exception as e:
+        if "unique" in str(e).lower():
+            return {"error": f"Topic '{topic_name}' already exists"}
+        raise
+
+
+@mcp.tool()
+async def add_topic_entry(
+    topic_name: str,
+    entry_table: str,
+    entry_id: int,
+    relevance_score: float = 1.0,
+) -> dict:
+    """Add an entry to a topic.
+
+    Args:
+        topic_name: Name of the topic
+        entry_table: Table of the entry (memories, knowledge_base, entries)
+        entry_id: ID of the entry
+        relevance_score: How relevant this entry is to the topic (0.0-1.0)
+
+    Returns:
+        dict with success status
+    """
+    if entry_table not in ENTRY_TABLES:
+        return {"error": f"Invalid entry_table. Must be one of: {ENTRY_TABLES}"}
+
+    relevance_score = max(0.0, min(1.0, relevance_score))
+
+    db = await get_db()
+    backend = get_backend()
+
+    # Get topic ID
+    p1 = db.placeholder(1)
+    topic = await db.fetchone(f"SELECT id FROM topic_index WHERE topic_name = {p1}", topic_name)
+    if not topic:
+        return {"error": f"Topic '{topic_name}' not found. Create it first with create_topic."}
+
+    topic_id = topic["id"]
+
+    try:
+        if backend == Backend.SQLITE:
+            sql = """INSERT INTO topic_entries (topic_id, entry_table, entry_id, relevance_score)
+                   VALUES (?, ?, ?, ?)"""
+            await db.execute(sql, topic_id, entry_table, entry_id, relevance_score)
+            return {"success": True, "topic_name": topic_name, "entry_added": f"{entry_table}.{entry_id}"}
+        else:
+            sql = """INSERT INTO topic_entries (topic_id, entry_table, entry_id, relevance_score)
+                   VALUES ($1, $2, $3, $4)
+                   RETURNING id"""
+            row = await db.fetchone(sql, topic_id, entry_table, entry_id, relevance_score)
+            return {"success": True, "id": row["id"], "topic_name": topic_name}
+    except Exception as e:
+        if "unique" in str(e).lower():
+            return {"error": "This entry is already in the topic"}
+        if "Invalid entry reference" in str(e):
+            return {"error": str(e)}
+        raise
+
+
+@mcp.tool()
+async def get_topic_entries(
+    topic_name: str,
+    entry_table: Optional[str] = None,
+    min_relevance: float = 0.0,
+    limit: int = 50,
+) -> dict:
+    """Get all entries for a topic.
+
+    Args:
+        topic_name: Name of the topic
+        entry_table: Filter by table (optional)
+        min_relevance: Minimum relevance score (0.0-1.0)
+        limit: Maximum entries to return
+
+    Returns:
+        dict with topic info and entries
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    # Get topic
+    p1 = db.placeholder(1)
+    topic = await db.fetchone(
+        f"SELECT * FROM topic_index WHERE topic_name = {p1}",
+        topic_name
+    )
+    if not topic:
+        return {"error": f"Topic '{topic_name}' not found"}
+
+    # Get entries
+    if backend == Backend.SQLITE:
+        sql = """SELECT te.*,
+                 CASE te.entry_table
+                   WHEN 'memories' THEN (SELECT key FROM memories WHERE id = te.entry_id)
+                   WHEN 'knowledge_base' THEN (SELECT title FROM knowledge_base WHERE id = te.entry_id)
+                   WHEN 'entries' THEN (SELECT title FROM entries WHERE id = te.entry_id)
+                 END as entry_title
+                 FROM topic_entries te
+                 WHERE te.topic_id = ? AND te.relevance_score >= ?"""
+        params = [topic["id"], min_relevance]
+
+        if entry_table:
+            sql += " AND te.entry_table = ?"
+            params.append(entry_table)
+
+        sql += " ORDER BY te.relevance_score DESC LIMIT ?"
+        params.append(limit)
+
+        entries = await db.fetchall(sql, *params)
+    else:
+        sql = """SELECT te.*,
+                 CASE te.entry_table
+                   WHEN 'memories' THEN (SELECT key FROM memories WHERE id = te.entry_id)
+                   WHEN 'knowledge_base' THEN (SELECT title FROM knowledge_base WHERE id = te.entry_id)
+                   WHEN 'entries' THEN (SELECT title FROM entries WHERE id = te.entry_id)
+                 END as entry_title
+                 FROM topic_entries te
+                 WHERE te.topic_id = $1 AND te.relevance_score >= $2"""
+        params = [topic["id"], min_relevance]
+
+        if entry_table:
+            sql += " AND te.entry_table = $3"
+            params.append(entry_table)
+            sql += " ORDER BY te.relevance_score DESC LIMIT $4"
+            params.append(limit)
+        else:
+            sql += " ORDER BY te.relevance_score DESC LIMIT $3"
+            params.append(limit)
+
+        entries = await db.fetchall(sql, *params)
+
+    return {
+        "topic": dict(topic),
+        "entries": entries,
+        "count": len(entries),
+    }
+
+
+@mcp.tool()
+async def update_topic_summary(
+    topic_name: str,
+    summary: Optional[str] = None,
+    full_summary: Optional[str] = None,
+    key_terms: Optional[str] = None,
+) -> dict:
+    """Update a topic's summary and metadata.
+
+    Args:
+        topic_name: Name of the topic to update
+        summary: Brief TLDR summary
+        full_summary: Longer summary with anchor links
+        key_terms: Comma-separated key terms
+
+    Returns:
+        dict with success status
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    updates = []
+    params = []
+
+    if backend == Backend.SQLITE:
+        if summary is not None:
+            updates.append("summary = ?")
+            params.append(summary)
+        if full_summary is not None:
+            updates.append("full_summary = ?")
+            params.append(full_summary)
+        if key_terms is not None:
+            updates.append("key_terms = ?")
+            params.append(key_terms)
+
+        updates.append("last_curated = CURRENT_TIMESTAMP")
+
+        if not params:
+            return {"error": "No fields to update"}
+
+        params.append(topic_name)
+        sql = f"UPDATE topic_index SET {', '.join(updates)} WHERE topic_name = ?"
+    else:
+        idx = 1
+        if summary is not None:
+            updates.append(f"summary = ${idx}")
+            params.append(summary)
+            idx += 1
+        if full_summary is not None:
+            updates.append(f"full_summary = ${idx}")
+            params.append(full_summary)
+            idx += 1
+        if key_terms is not None:
+            term_list = [t.strip() for t in key_terms.split(",") if t.strip()]
+            updates.append(f"key_terms = ${idx}::text[]")
+            params.append(term_list)
+            idx += 1
+
+        updates.append("last_curated = CURRENT_TIMESTAMP")
+
+        if not params:
+            return {"error": "No fields to update"}
+
+        params.append(topic_name)
+        sql = f"UPDATE topic_index SET {', '.join(updates)} WHERE topic_name = ${idx}"
+
+    result = await db.execute(sql, *params)
+
+    if "0" in result or result.endswith(" 0"):
+        return {"error": f"Topic '{topic_name}' not found"}
+
+    return {"success": True, "topic_name": topic_name}
+
+
+@mcp.tool()
+async def log_curation_run(
+    operation: str,
+    agent: Optional[str] = None,
+    stats: Optional[str] = None,
+    duration_seconds: Optional[float] = None,
+    success: bool = True,
+    error_message: Optional[str] = None,
+) -> dict:
+    """Log a curation operation to curation_history.
+
+    Args:
+        operation: Type of operation (tag_normalization, relationship_discovery, etc.)
+        agent: Agent that performed the curation
+        stats: JSON string with operation statistics
+        duration_seconds: How long the operation took
+        success: Whether the operation succeeded
+        error_message: Error message if operation failed
+
+    Returns:
+        dict with success status and entry id
+    """
+    import json
+
+    db = await get_db()
+    backend = get_backend()
+
+    # Parse stats JSON if provided
+    stats_json = {}
+    if stats:
+        try:
+            stats_json = json.loads(stats)
+        except json.JSONDecodeError:
+            stats_json = {"raw": stats}
+
+    if backend == Backend.SQLITE:
+        sql = """INSERT INTO curation_history
+               (operation, agent, stats, duration_seconds, success, error_message)
+               VALUES (?, ?, ?, ?, ?, ?)"""
+        await db.execute(sql, operation, agent, json.dumps(stats_json),
+                        duration_seconds, 1 if success else 0, error_message)
+        row = await db.fetchone("SELECT last_insert_rowid() as id")
+        return {"success": True, "id": row["id"]}
+    else:
+        sql = """INSERT INTO curation_history
+               (operation, agent, stats, duration_seconds, success, error_message)
+               VALUES ($1, $2, $3::jsonb, $4, $5, $6)
+               RETURNING id"""
+        row = await db.fetchone(sql, operation, agent, json.dumps(stats_json),
+                               duration_seconds, success, error_message)
+        return {"success": True, "id": row["id"]}
+
 
 
 def main():
