@@ -8,8 +8,10 @@ Backend selection:
 - PostgreSQL: Set DATABASE_URL or PGHOST environment variables
 """
 
+import json
 import re
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from typing import Optional
 from fastmcp import FastMCP
 
@@ -1753,7 +1755,6 @@ async def log_curation_run(
     Returns:
         dict with success status and entry id
     """
-    import json
 
     db = await get_db()
     backend = get_backend()
@@ -2218,8 +2219,6 @@ async def get_curation_metrics(
     Returns:
         dict with metrics, alerts, and recommendations
     """
-    import json
-    from datetime import datetime, timedelta
 
     db = await get_db()
     backend = get_backend()
