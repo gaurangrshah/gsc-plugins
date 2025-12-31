@@ -114,8 +114,8 @@ WORK_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM entries WHERE timestamp > 
 WORK_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM entries WHERE timestamp > datetime('now', '-1 day') ORDER BY timestamp DESC LIMIT 3;" 2>/dev/null)
 
 # Open issues
-ISSUE_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM issues WHERE status = 'open';" 2>/dev/null)
-ISSUE_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM issues WHERE status = 'open' ORDER BY created_at DESC LIMIT 3;" 2>/dev/null)
+ISSUE_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM sot_issues WHERE status = 'open';" 2>/dev/null)
+ISSUE_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM sot_issues WHERE status = 'open' ORDER BY created_at DESC LIMIT 3;" 2>/dev/null)
 
 # Recent errors (7d)
 ERROR_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM error_patterns WHERE last_seen > datetime('now', '-7 days');" 2>/dev/null)

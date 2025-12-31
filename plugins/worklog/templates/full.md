@@ -32,7 +32,7 @@ ORDER BY timestamp DESC LIMIT 10;"
 
 # Open issues
 sqlite3 ${WORKLOG_DB_PATH} "SELECT project, title
-FROM issues WHERE status = 'open'
+FROM sot_issues WHERE status = 'open'
 ORDER BY created_at DESC LIMIT 5;"
 
 # Recent error patterns
@@ -111,7 +111,7 @@ EOF
 | `entries` | Work history |
 | `knowledge_base` | Reusable learnings, protocols |
 | `memories` | Working context |
-| `issues` | Issue tracking |
+| `sot_issues` | Issue tracking |
 | `error_patterns` | Error resolutions |
 | `research` | External research |
 
