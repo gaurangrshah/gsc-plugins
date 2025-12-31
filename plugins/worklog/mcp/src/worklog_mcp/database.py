@@ -171,7 +171,7 @@ class SQLiteBackend(DatabaseBackend):
             resolved_at TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS issues (
+        CREATE TABLE IF NOT EXISTS sot_issues (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project TEXT,
             title TEXT NOT NULL,
