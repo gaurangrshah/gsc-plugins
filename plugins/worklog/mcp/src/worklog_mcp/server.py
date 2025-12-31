@@ -839,6 +839,100 @@ async def store_knowledge(
         raise
 
 
+@mcp.tool()
+async def update_knowledge(
+    id: int,
+    content: Optional[str] = None,
+    tags: Optional[str] = None,
+    is_protocol: Optional[bool] = None,
+    source_url: Optional[str] = None,
+) -> dict:
+    """Update an existing knowledge base entry by ID.
+
+    Note: Category and title cannot be changed as they form the unique key.
+
+    Args:
+        id: The knowledge base entry ID to update
+        content: New content (optional)
+        tags: New tags (optional)
+        is_protocol: Whether this is a protocol document (optional)
+        source_url: Source URL for the content (optional)
+
+    Returns:
+        dict with success status
+    """
+    db = await get_db()
+    backend = get_backend()
+
+    # First verify the entry exists
+    p1 = db.placeholder(1)
+    existing = await db.fetchone(f"SELECT id, title FROM knowledge_base WHERE id = {p1}", id)
+    if not existing:
+        return {"error": f"No knowledge base entry with id {id}"}
+
+    updates = []
+    params = []
+
+    if backend == Backend.SQLITE:
+        if content is not None:
+            updates.append("content = ?")
+            params.append(content)
+        if tags is not None:
+            updates.append("tags = ?")
+            params.append(tags)
+        if is_protocol is not None:
+            updates.append("is_protocol = ?")
+            params.append(1 if is_protocol else 0)
+        if source_url is not None:
+            updates.append("source_url = ?")
+            params.append(source_url)
+
+        if not updates:
+            return {"error": "No fields to update"}
+
+        # Always update updated_at timestamp
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+
+        params.append(id)
+        sql = f"UPDATE knowledge_base SET {', '.join(updates)} WHERE id = ?"
+    else:
+        param_idx = 1
+        if content is not None:
+            updates.append(f"content = ${param_idx}")
+            params.append(content)
+            param_idx += 1
+        if tags is not None:
+            updates.append(f"tags = ${param_idx}")
+            params.append(tags)
+            param_idx += 1
+        if is_protocol is not None:
+            updates.append(f"is_protocol = ${param_idx}")
+            params.append(is_protocol)
+            param_idx += 1
+        if source_url is not None:
+            updates.append(f"source_url = ${param_idx}")
+            params.append(source_url)
+            param_idx += 1
+
+        if not updates:
+            return {"error": "No fields to update"}
+
+        # Always update updated_at timestamp
+        updates.append("updated_at = CURRENT_TIMESTAMP")
+
+        params.append(id)
+        sql = f"UPDATE knowledge_base SET {', '.join(updates)} WHERE id = ${param_idx}"
+
+    await db.execute(sql, *params)
+
+    return {
+        "success": True,
+        "id": id,
+        "title": existing["title"],
+        "updated_fields": len([u for u in updates if "=" in u and "updated_at" not in u]),
+    }
+
+
 # =============================================================================
 # UTILITY TOOLS
 # =============================================================================
