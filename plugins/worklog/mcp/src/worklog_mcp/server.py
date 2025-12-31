@@ -923,7 +923,10 @@ async def update_knowledge(
         params.append(id)
         sql = f"UPDATE knowledge_base SET {', '.join(updates)} WHERE id = ${param_idx}"
 
-    await db.execute(sql, *params)
+    try:
+        await db.execute(sql, *params)
+    except Exception as e:
+        return {"error": f"Failed to update knowledge entry: {e}"}
 
     return {
         "success": True,
