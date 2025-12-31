@@ -149,7 +149,7 @@ def _get_dsn() -> str:
 TABLES = ["memories", "knowledge_base", "entries", "research", "agent_chat",
           "tag_taxonomy", "relationships", "topic_index", "topic_entries",
           "duplicate_candidates", "promotion_history", "curation_history",
-          "issues", "error_patterns"]
+          "sot_issues", "error_patterns"]
 
 # Valid agent names for chat
 # Default agents - can be extended via WORKLOG_AGENTS env var (comma-separated)

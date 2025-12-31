@@ -486,7 +486,7 @@ pytest -v                   # Run tests
 | `entries` | Work history and activity logs |
 | `knowledge_base` | Reusable learnings and protocols |
 | `memories` | Working context and session state |
-| `issues` | Issue tracking |
+| `sot_issues` | Issue tracking |
 | `error_patterns` | Error signatures and resolutions |
 | `research` | External research items |
 

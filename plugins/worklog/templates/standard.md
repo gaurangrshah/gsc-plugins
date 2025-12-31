@@ -83,7 +83,7 @@ FROM entries ORDER BY timestamp DESC LIMIT 10;"
 | `entries` | Work history |
 | `knowledge_base` | Reusable learnings |
 | `memories` | Working context |
-| `issues` | Issue tracking |
+| `sot_issues` | Issue tracking |
 | `error_patterns` | Error resolutions |
 | `research` | External research |
 
