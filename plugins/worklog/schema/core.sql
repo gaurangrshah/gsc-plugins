@@ -1,6 +1,7 @@
 -- Worklog Core Schema
--- Version: 1.0.0
--- Tables: 6 (entries, knowledge_base, memories, sot_issues, error_patterns, research)
+-- Version: 1.1.0
+-- Tables: 5 (entries, knowledge_base, memories, error_patterns, research)
+-- NOTE: sot_issues removed in INFA-614 - Plane/Gitea sync no longer uses worklog
 
 -- Work history and activity logs
 CREATE TABLE IF NOT EXISTS entries (
@@ -65,25 +66,6 @@ CREATE INDEX IF NOT EXISTS idx_memories_status ON memories(status);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_importance ON memories(importance);
 CREATE INDEX IF NOT EXISTS idx_memories_access ON memories(access_count);
-
--- Issue tracking (source-of-truth issues bridging Gitea and Plane)
-CREATE TABLE IF NOT EXISTS sot_issues (
-    id INTEGER PRIMARY KEY,
-    project TEXT,
-    title TEXT NOT NULL,
-    description TEXT,
-    status TEXT DEFAULT 'open',             -- open|resolved|wontfix|duplicate
-    resolution TEXT,
-    related_error_id INTEGER,               -- FK to error_patterns
-    tags TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    resolved_at TIMESTAMP,
-    source_agent TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_sot_issues_project ON sot_issues(project);
-CREATE INDEX IF NOT EXISTS idx_sot_issues_status ON sot_issues(status);
-CREATE INDEX IF NOT EXISTS idx_sot_issues_tags ON sot_issues(tags);
 
 -- Error signatures and resolutions
 CREATE TABLE IF NOT EXISTS error_patterns (

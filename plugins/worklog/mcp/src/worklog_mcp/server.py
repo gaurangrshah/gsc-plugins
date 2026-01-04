@@ -54,10 +54,7 @@ TABLE_COLUMNS: dict[str, frozenset[str]] = {
         "id", "from_agent", "to_agent", "message", "context", "priority",
         "status", "parent_id", "response", "created_at", "read_at", "resolved_at"
     }),
-    "sot_issues": frozenset({
-        "id", "project", "title", "description", "status", "tags",
-        "source_agent", "created_at"
-    }),
+    # NOTE: sot_issues removed in INFA-614
     "error_patterns": frozenset({
         "id", "error_signature", "error_message", "platform", "language",
         "root_cause", "resolution", "prevention_tip", "tags", "created_at"
@@ -216,7 +213,7 @@ async def query_table(
     """Query any table in the worklog database with filtering and pagination.
 
     Args:
-        table: Table name (memories, knowledge_base, entries, research, agent_chat, sot_issues, error_patterns)
+        table: Table name (memories, knowledge_base, entries, research, agent_chat, error_patterns)
         columns: Comma-separated column names or * for all
         filter_column: Column to filter on (validated against whitelist)
         filter_op: Filter operator (=, !=, >, <, >=, <=, LIKE, ILIKE)

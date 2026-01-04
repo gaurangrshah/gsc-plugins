@@ -171,16 +171,7 @@ class SQLiteBackend(DatabaseBackend):
             resolved_at TIMESTAMP
         );
 
-        CREATE TABLE IF NOT EXISTS sot_issues (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            project TEXT,
-            title TEXT NOT NULL,
-            description TEXT,
-            status TEXT DEFAULT 'open',
-            tags TEXT,
-            source_agent TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        -- NOTE: sot_issues removed in INFA-614
 
         CREATE TABLE IF NOT EXISTS error_patterns (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
