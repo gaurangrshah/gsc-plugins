@@ -30,11 +30,6 @@ sqlite3 ${WORKLOG_DB_PATH} "SELECT agent, title, outcome
 FROM entries WHERE timestamp > datetime('now', '-1 day')
 ORDER BY timestamp DESC LIMIT 10;"
 
-# Open issues
-sqlite3 ${WORKLOG_DB_PATH} "SELECT project, title
-FROM sot_issues WHERE status = 'open'
-ORDER BY created_at DESC LIMIT 5;"
-
 # Recent error patterns
 sqlite3 ${WORKLOG_DB_PATH} "SELECT error_signature, resolution
 FROM error_patterns WHERE last_seen > datetime('now', '-7 days')
@@ -111,7 +106,6 @@ EOF
 | `entries` | Work history |
 | `knowledge_base` | Reusable learnings, protocols |
 | `memories` | Working context |
-| `sot_issues` | Issue tracking |
 | `error_patterns` | Error resolutions |
 | `research` | External research |
 

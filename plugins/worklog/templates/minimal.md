@@ -39,7 +39,6 @@ WHERE tags LIKE '%keyword%';"
 | `entries` | Work history |
 | `knowledge_base` | Reusable learnings |
 | `memories` | Working context |
-| `sot_issues` | Issue tracking |
 | `error_patterns` | Error resolutions |
 | `research` | External research |
 

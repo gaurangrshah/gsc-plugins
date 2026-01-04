@@ -479,14 +479,13 @@ pytest -v                   # Run tests
 
 ## Database Schema
 
-### Core Tables (6)
+### Core Tables (5)
 
 | Table | Purpose |
 |-------|---------|
 | `entries` | Work history and activity logs |
 | `knowledge_base` | Reusable learnings and protocols |
 | `memories` | Working context and session state |
-| `sot_issues` | Issue tracking |
 | `error_patterns` | Error signatures and resolutions |
 | `research` | External research items |
 

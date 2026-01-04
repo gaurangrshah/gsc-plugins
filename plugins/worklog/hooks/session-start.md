@@ -113,10 +113,6 @@ PROTOCOL_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM knowledge_base WHERE cate
 WORK_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM entries WHERE timestamp > datetime('now', '-1 day');" 2>/dev/null)
 WORK_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM entries WHERE timestamp > datetime('now', '-1 day') ORDER BY timestamp DESC LIMIT 3;" 2>/dev/null)
 
-# Open issues
-ISSUE_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM sot_issues WHERE status = 'open';" 2>/dev/null)
-ISSUE_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM sot_issues WHERE status = 'open' ORDER BY created_at DESC LIMIT 3;" 2>/dev/null)
-
 # Recent errors (7d)
 ERROR_COUNT=$(sqlite3 "$DB_PATH" "SELECT COUNT(*) FROM error_patterns WHERE last_seen > datetime('now', '-7 days');" 2>/dev/null)
 ERROR_INDEX=$(sqlite3 "$DB_PATH" "SELECT error_signature FROM error_patterns WHERE last_seen > datetime('now', '-7 days') ORDER BY occurrence_count DESC LIMIT 3;" 2>/dev/null)
@@ -140,7 +136,6 @@ KB_INDEX=$(sqlite3 "$DB_PATH" "SELECT title FROM knowledge_base WHERE updated_at
 |----------|-------|-------------|------------------|
 | Protocols | {PROTOCOL_COUNT} | ~{PROTOCOL_COUNT * 300} | {PROTOCOL_INDEX or "None"} |
 | Recent Work (24h) | {WORK_COUNT} | ~{WORK_COUNT * 150} | {WORK_INDEX or "None"} |
-| Open Issues | {ISSUE_COUNT} | ~{ISSUE_COUNT * 200} | {ISSUE_INDEX or "None"} |
 | Error Patterns (7d) | {ERROR_COUNT} | ~{ERROR_COUNT * 250} | {ERROR_INDEX or "None"} |
 | Important Memories | {MEMORY_COUNT} | ~{MEMORY_COUNT * 200} | {MEMORY_INDEX or "None"} |
 | Knowledge Base (7d) | {KB_COUNT} | ~{KB_COUNT * 400} | {KB_INDEX or "None"} |

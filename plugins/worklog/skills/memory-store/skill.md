@@ -24,7 +24,6 @@ Store information in the worklog database for cross-session persistence.
 | Work completion | `entries` | After significant tasks |
 | Error resolutions | `error_patterns` | When you solve a tricky error |
 | Working context | `memories` | Session state, decisions in progress |
-| Issues found | `sot_issues` | Bugs, problems to track |
 
 ### DO NOT Store
 
@@ -112,20 +111,6 @@ sqlite3 "$DB" "INSERT INTO error_patterns
 );"
 ```
 
-### Issue
-
-```bash
-sqlite3 "$DB" "INSERT INTO sot_issues
-(project, title, description, status, tags, source_agent) VALUES (
-'my-project',
-'API rate limiting needed',
-'Users can make unlimited requests',
-'open',
-'topic:api,topic:security',
-'claude'
-);"
-```
-
 ---
 
 ## PostgreSQL Store Patterns (Optional)
@@ -188,20 +173,6 @@ psql -c "INSERT INTO error_patterns
 'PostgreSQL not running',
 'Start PostgreSQL: brew services start postgresql',
 'topic:postgresql,topic:connection'
-);"
-```
-
-### Issue
-
-```bash
-psql -c "INSERT INTO sot_issues
-(project, title, description, status, tags, source_agent) VALUES (
-'my-project',
-'API rate limiting needed',
-'Users can make unlimited requests',
-'open',
-'topic:api,topic:security',
-'claude'
 );"
 ```
 
