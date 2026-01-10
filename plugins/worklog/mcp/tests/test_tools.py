@@ -16,7 +16,7 @@ def test_database_path_exists():
 def test_tables_defined():
     """Test that all expected core tables are defined."""
     core_tables = {"memories", "knowledge_base", "entries", "research", "agent_chat",
-                   "sot_issues", "error_patterns"}
+                   "error_patterns"}
     assert core_tables.issubset(set(TABLES))
 
 
