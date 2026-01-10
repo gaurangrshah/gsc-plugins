@@ -25,6 +25,15 @@ class Backend(Enum):
 DEFAULT_SQLITE_PATH = Path.home() / ".claude" / "worklog" / "worklog.db"
 
 
+def is_read_only() -> bool:
+    """Check if read-only mode is enabled.
+
+    When WORKLOG_READ_ONLY=true, write operations are disabled.
+    Useful for sandbox environments that should only read from shared KB.
+    """
+    return os.environ.get("WORKLOG_READ_ONLY", "").lower() in ("true", "1", "yes")
+
+
 def get_backend() -> Backend:
     """Detect which backend to use.
 

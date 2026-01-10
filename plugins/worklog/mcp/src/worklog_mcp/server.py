@@ -17,6 +17,7 @@ from fastmcp import FastMCP
 
 from worklog_mcp.config import (
     get_backend,
+    is_read_only,
     Backend,
     TABLES,
     MEMORY_TYPES,
@@ -27,6 +28,13 @@ from worklog_mcp.config import (
     ENTRY_TABLES,
     CURATION_OPERATIONS,
 )
+
+
+# Read-only mode error response
+READ_ONLY_ERROR = {
+    "error": "Read-only mode enabled. Write operations are disabled.",
+    "hint": "Set WORKLOG_READ_ONLY=false to enable writes."
+}
 from worklog_mcp.database import get_db, close_db, UniqueViolationError
 
 
@@ -613,6 +621,9 @@ async def store_memory(
     Returns:
         dict with success status and memory id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     if memory_type not in MEMORY_TYPES:
         return {"error": f"Invalid memory_type. Must be one of: {MEMORY_TYPES}"}
 
@@ -664,6 +675,9 @@ async def update_memory(
     Returns:
         dict with success status
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     if status and status not in MEMORY_STATUSES:
         return {"error": f"Invalid status. Must be one of: {MEMORY_STATUSES}"}
 
@@ -763,6 +777,9 @@ async def log_entry(
     Returns:
         dict with success status and entry id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     if task_type not in TASK_TYPES:
         return {"error": f"Invalid task_type. Must be one of: {TASK_TYPES}"}
 
@@ -809,6 +826,9 @@ async def store_knowledge(
     Returns:
         dict with success status and entry id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     if category not in KB_CATEGORIES:
         return {"error": f"Invalid category. Must be one of: {KB_CATEGORIES}"}
 
@@ -858,6 +878,9 @@ async def update_knowledge(
     Returns:
         dict with success status
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     db = await get_db()
     backend = get_backend()
 
@@ -1060,6 +1083,9 @@ async def send_message(
     Returns:
         dict with message_id and status
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     from worklog_mcp.config import AGENTS, CHAT_PRIORITIES
 
     if to_agent not in AGENTS:
@@ -1195,6 +1221,9 @@ async def reply_message(
     Returns:
         dict with reply status
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     if not from_agent:
         from_agent = _detect_agent()
 
@@ -1409,6 +1438,9 @@ async def add_tag_taxonomy(
     Returns:
         dict with success status and tag id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     db = await get_db()
     backend = get_backend()
 
@@ -1461,6 +1493,9 @@ async def add_relationship(
     Returns:
         dict with success status and relationship id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     # Validate table names
     if source_table not in ENTRY_TABLES:
         return {"error": f"Invalid source_table. Must be one of: {ENTRY_TABLES}"}
@@ -1596,6 +1631,9 @@ async def create_topic(
     Returns:
         dict with success status and topic id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     db = await get_db()
     backend = get_backend()
 
@@ -1638,6 +1676,9 @@ async def add_topic_entry(
     Returns:
         dict with success status
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     if entry_table not in ENTRY_TABLES:
         return {"error": f"Invalid entry_table. Must be one of: {ENTRY_TABLES}"}
 
@@ -1771,6 +1812,9 @@ async def update_topic_summary(
     Returns:
         dict with success status
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
+
     db = await get_db()
     backend = get_backend()
 
@@ -1849,6 +1893,8 @@ async def log_curation_run(
     Returns:
         dict with success status and entry id
     """
+    if is_read_only():
+        return READ_ONLY_ERROR
 
     db = await get_db()
     backend = get_backend()
