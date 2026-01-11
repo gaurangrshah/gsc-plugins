@@ -179,9 +179,10 @@ Track with TaskFlow? (y/n)
 ```
 
 **If user says yes:**
-1. Invoke `taskflow-integration` skill to create task hierarchy
-2. Update tasks as phases complete
-3. Mark dependencies (e.g., Implementation depends on Database + API)
+1. Initialize TaskFlow in project directory: `/task-init`
+2. Create tasks for each phase: `/task-parse` (if PRD) or manual task creation
+3. Update task status as phases complete: `/task-status {id} in_progress|done`
+4. Mark dependencies (e.g., Implementation depends on Database + API)
 
 **If user says no OR TaskFlow not available:**
 - Proceed normally without task tracking
@@ -467,6 +468,13 @@ Report when complete.
    - Dev server runs (if applicable)
 
 **Worktree Setup (if enabled):**
+
+**Query KB for worktree workflow:**
+```
+mcp__worklog__get_knowledge_entry(id=457)
+# "Git Worktrees for Parallel Agent Development"
+```
+
 ```bash
 # Create worktree for isolated development
 WORKTREE_DIR="${APPGEN_OUTPUT_DIR}/worktrees/${slug}"
@@ -479,6 +487,8 @@ git worktree add -b "${BRANCH_NAME}" "${WORKTREE_DIR}" main
 git worktree list | grep "${slug}"
 cd "${WORKTREE_DIR}"
 ```
+
+**Note:** For parallel agent development patterns, see KB #457.
 
 **Store worktree context in session:**
 ```json

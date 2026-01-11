@@ -94,10 +94,10 @@ Done
 - **Database-First:** Schema design before implementation
 - **API-First:** Endpoint design before UI
 - **Configurable Output:** Projects go to `{APPGEN_OUTPUT_DIR}/{slug} - appgen/`
-- **Tech Stack Research:** Analysis of framework and library options
+- **Tech Stack Research:** Analysis based on requirements and team context (queries KB)
 - **Comprehensive Testing:** Unit, integration, and E2E test setup
-- **Authentication:** Auth.js/Clerk/Lucia integration options
-- **Database ORMs:** Prisma or Drizzle with migrations
+- **Authentication:** Strategy based on requirements (queries KB for patterns)
+- **Database:** Progressive selection based on scale needs (queries KB for guidance)
 - **Deployment Config:** Docker, CI/CD, environment setup
 - **Signed Work:** All commits include appgen v1.0 signature
 - **Feature Branches:** Uses git feature branch workflow
