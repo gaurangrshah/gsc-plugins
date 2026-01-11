@@ -293,11 +293,17 @@ cat .webgen/assets/catalog.json
 **Actions:**
 1. **Check for existing project** at target location - don't create duplicates
 2. **Review reference assets** (if provided) to identify needed components
-3. Determine tech stack based on requirements:
-   - No server → React + Vite + Tailwind (default)
-   - Static content → Astro + Tailwind
-   - Server/API → Next.js + Tailwind
-3. Create project at `{output_dir}/{project-slug} - webgen/`
+3. **Query KB for tech stack guidance:**
+   ```
+   mcp__worklog__search_knowledge(query="team experience context")
+   mcp__worklog__search_knowledge(query="technology selection framework")
+   mcp__worklog__search_knowledge(query="development philosophy simple")
+   ```
+4. Determine tech stack based on requirements and KB guidance:
+   - Check if requirements specify stack → Use that
+   - If not → Progressive decision: Start simple (static HTML/CSS) → Framework if needed
+   - Query KB for team's preferred frameworks
+5. Create project at `{output_dir}/{project-slug} - webgen/`
 4. Create folder structure (research/, docs/, src/, tests/)
 5. **Initialize git with main branch FIRST:**
    ```bash
@@ -372,7 +378,7 @@ Dev server: Running at http://localhost:XXXX ← MUST be verified
 
 **Deliverables:**
 - Project scaffolded at {output_dir}/{slug} - webgen/
-- Tech stack: [React+Vite / Astro / Next.js] + Tailwind
+- Tech stack: [Chosen stack based on requirements and KB guidance]
 - **Dependencies installed: [SUCCESS/PARTIAL/FAILED]**
 - **Dev server: Running at [URL] / FAILED: [error]**
 
@@ -579,10 +585,10 @@ feat: Create entire website  ← WRONG: monolithic
 ```
 
 **Code Review:** Orchestrator dispatches `code-reviewer` agent to validate:
-- Code quality and React/Next.js best practices
+- Code quality and framework best practices
 - Accessibility compliance
 - Security concerns
-- TypeScript usage
+- Type safety (if applicable)
 - Component structure
 
 If issues found: fix and re-submit (max 2 iterations).
@@ -899,27 +905,41 @@ git branch -d feat/initial-implementation  # Clean up feature branch
 
 ## Design System
 
-Reference the `design-system` skill for:
-- Color tokens (CSS variables)
-- Component classes (btn, card, nav, hero, etc.)
-- Responsive patterns
-- Dark mode support
+**Query KB for design system patterns:**
+```
+mcp__worklog__search_knowledge(query="design system")
+```
 
-Use Tailwind CSS with design system's custom classes.
+Reference available design patterns for:
+- Color tokens and CSS variables
+- Component patterns
+- Responsive layouts
+- Accessibility patterns
+- Dark mode support (if required)
+
+Apply styling approach based on chosen tech stack and team preferences.
 
 ---
 
-## Tech Stack Templates
+## Tech Stack Selection
 
-| Scenario | Stack | Reason |
-|----------|-------|--------|
-| Simple landing page | React + Vite | Fast, no SSR complexity |
-| Portfolio, marketing | React + Vite | Static content, quick dev |
-| Blog, documentation | Astro | Content-focused, partial hydration |
-| App with API routes | Next.js | Server-side features |
-| E-commerce, auth | Next.js | Dynamic content, SSR/SSG |
+**Query KB for guidance:**
+```
+mcp__worklog__search_knowledge(query="team experience context")
+mcp__worklog__search_knowledge(query="technology selection framework")
+```
 
-Default: **React + Vite + Tailwind**
+**Progressive decision framework:**
+1. Check requirements - does PRD specify stack? → Use that
+2. Start simple - can this be static HTML/CSS? → Use that
+3. Need interactivity - query KB for team's preferred frameworks
+4. Match complexity to requirements - don't overcomplicate
+
+**Considerations:**
+- Static content → Simpler is better
+- Interactive features → Framework choice based on team experience
+- Server features → Backend framework based on requirements
+- Always justify the choice based on requirements, not assumptions
 
 ---
 

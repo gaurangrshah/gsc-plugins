@@ -148,38 +148,57 @@ You receive confirmed requirements before starting work.
 
 ### Tech Stack Analysis
 
-Research and document technology choices:
+Research and document technology choices using the knowledge base:
 
-1. **Framework Selection:**
-   - Full-stack: Next.js 15 (App Router), Remix, SvelteKit
-   - API-only: Hono, Express, Fastify, tRPC
-   - Monorepo: Turborepo structure
+**Query KB First:**
+```
+mcp__worklog__search_knowledge(query="team experience context")
+mcp__worklog__search_knowledge(query="technology selection framework")
+mcp__worklog__search_knowledge(query="development philosophy simple")
+```
 
-2. **Database & ORM:**
-   - ORM choice: Prisma vs Drizzle
-   - Migration strategy
-   - Seeding approach
+**Research Process:**
 
-3. **Authentication:**
-   - Auth.js (NextAuth) for Next.js
-   - Clerk for hosted auth
-   - Lucia for lightweight custom auth
-   - Custom JWT strategy
+1. **Check PRD Requirements:**
+   - Does the PRD specify tech stack? → Use those specifications
+   - PRD requirements have highest priority
 
-4. **API Pattern:**
-   - REST for public APIs
-   - tRPC for type-safe Next.js
-   - GraphQL if complex data requirements
+2. **If PRD doesn't specify, research options:**
+   - Query KB for team experience context (what team knows vs. learning curve)
+   - Query KB for technology selection framework (decision hierarchy)
+   - Research current ecosystem (latest versions, community support, security)
 
-5. **State Management:**
-   - React Query for server state
-   - Zustand for client state
-   - Server Components (Next.js)
+3. **Framework Selection:**
+   - Based on requirements: full-stack, API-only, or monorepo?
+   - Query team context: What frameworks align with team experience?
+   - Justify choice: Why this framework for these requirements?
 
-6. **Testing Strategy:**
-   - Unit: Vitest
-   - Integration: Supertest (API), Playwright (E2E)
-   - Database: Test containers or SQLite
+4. **Database & ORM:**
+   - Progressive decision framework: localStorage → SQLite → PostgreSQL → Specialized (Vector DBs for AI/RAG)
+   - Based on requirements: persistence needs, scale, hosting constraints
+   - Start simple, scale up when requirements demand it
+   - Query team context for familiarity with chosen approach
+   - Document migration and seeding strategy
+
+5. **Authentication:**
+   - Based on requirements: complexity, user base, compliance needs
+   - Query team context for integration experience
+   - Consider: hosted (Clerk) vs. self-hosted (Auth.js, Lucia) vs. custom JWT
+
+6. **API Pattern:**
+   - Based on requirements: public API vs. internal, type safety needs
+   - REST for simplicity and public APIs
+   - Consider tRPC for type-safe full-stack, GraphQL for complex data needs
+
+7. **State Management:**
+   - Based on requirements: data flow complexity, real-time needs
+   - Query team context for patterns used
+   - Keep it simple: Start with framework defaults before adding complexity
+
+8. **Testing Strategy:**
+   - Based on requirements: coverage needs, CI/CD integration
+   - Query team context for testing patterns
+   - Plan unit, integration, and E2E test approach
 
 **Deliverable:** `research/tech-stack-analysis.md`
 
@@ -238,41 +257,44 @@ Use the `database-design` skill to:
    - Plan indexes for query patterns
 
 2. **Schema Definition:**
-   - Use Prisma schema or Drizzle schemas
+   - Use chosen ORM schema format (based on research phase)
    - Include proper types, constraints, defaults
-   - Document relationships
+   - Document relationships and indexes
 
 3. **Migration Strategy:**
-   - Plan initial migration
-   - Document seed data approach
-   - Plan for future schema evolution
+   - Plan initial migration approach
+   - Document seed data strategy
+   - Plan for schema evolution
 
-**Deliverable:** `database/schema.md` + `prisma/schema.prisma` (or Drizzle equivalent)
+**Deliverable:** `database/schema.md` + ORM schema file(s)
 
-**Example Prisma Schema:**
-```prisma
-// prisma/schema.prisma
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  posts     Post[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+**Example Schema Structure (ORM-agnostic):**
+```markdown
+# Database Schema
 
-model Post {
-  id        String   @id @default(cuid())
-  title     String
-  content   String
-  published Boolean  @default(false)
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+## Entities
 
-  @@index([authorId])
-}
+### User
+- id: Primary key (UUID/CUID)
+- email: Unique, required
+- name: Optional
+- createdAt: Timestamp
+- updatedAt: Timestamp
+- Relationships: Has many Posts
+
+### Post
+- id: Primary key (UUID/CUID)
+- title: Required string
+- content: Required text
+- published: Boolean, default false
+- authorId: Foreign key to User
+- createdAt: Timestamp
+- updatedAt: Timestamp
+- Indexes: authorId
+- Relationships: Belongs to User
+
+## Migration Notes
+[Document ORM-specific migration approach]
 ```
 
 **Report to Orchestrator:**
@@ -398,30 +420,29 @@ Use the `api-design` skill to:
 Use the `project-scaffold` skill to:
 
 1. **Initialize Project:**
-   - Run appropriate setup script (setup-nextjs-app.sh, setup-api-only.sh, setup-monorepo.sh)
+   - Run appropriate setup script based on chosen framework
    - Install dependencies
-   - Configure TypeScript, ESLint, Prettier
+   - Configure tooling (TypeScript, Biome.js for JS projects)
 
 2. **Folder Structure:**
    - Follow framework best practices
    - Create domain-driven directories if complex
 
-**Next.js App Router Example:**
+**Full-Stack Example:**
 ```
-{project-slug} - appgen/
-├── app/
+{project-slug}-appgen/
+├── app/ (or src/)    # Application code
 │   ├── api/          # API routes
-│   ├── (auth)/       # Auth pages
-│   └── (dashboard)/  # App pages
-├── components/
-│   ├── ui/           # shadcn/ui components
+│   ├── (auth)/       # Auth pages (if applicable)
+│   └── (dashboard)/  # App pages (if applicable)
+├── components/       # UI components (if full-stack)
+│   ├── ui/           # Base components
 │   └── features/     # Feature components
 ├── lib/
 │   ├── db.ts         # Database client
 │   ├── auth.ts       # Auth config
 │   └── utils.ts      # Utilities
-├── prisma/
-│   └── schema.prisma
+├── db/               # Database schema/migrations (ORM-specific)
 ├── tests/
 │   ├── unit/
 │   ├── integration/
@@ -438,14 +459,13 @@ Use the `project-scaffold` skill to:
 
 **API-Only Example:**
 ```
-{project-slug} - appgen/
+{project-slug}-appgen/
 ├── src/
 │   ├── routes/       # API routes
 │   ├── services/     # Business logic
 │   ├── middleware/   # Auth, validation
 │   └── types/        # TypeScript types
-├── prisma/
-│   └── schema.prisma
+├── db/               # Database schema/migrations (ORM-specific)
 ├── tests/
 │   ├── unit/
 │   └── integration/
@@ -478,8 +498,7 @@ Use the `project-scaffold` skill to:
 
 **Configuration:**
 - TypeScript: ✓
-- ESLint: ✓
-- Prettier: ✓
+- Biome.js: ✓ (for JS projects)
 - Database client: ✓
 
 **Deliverables:**
@@ -504,13 +523,14 @@ Use the `project-scaffold` skill to:
 Generate application code following the architecture:
 
 1. **Database Setup:**
-   - Apply Prisma schema (prisma generate, prisma migrate dev)
+   - Apply chosen ORM schema (follow ORM-specific migration commands)
+   - Run migrations and generate client code
    - Create seed script if needed
 
 2. **Authentication:**
-   - Use `auth-integration` skill
-   - Configure chosen auth provider
-   - Implement middleware/HOCs
+   - Implement chosen auth strategy (from research phase)
+   - Configure auth provider/library
+   - Implement middleware/guards for protected routes
 
 3. **API Implementation:**
    - Generate route handlers based on api/design.md
@@ -588,9 +608,9 @@ Maximum 2 iterations, then escalate to user if disagreement.
    - Generate example E2E test for critical user flow
 
 3. **Test Database:**
-   - Set up test database strategy
-   - SQLite for unit/integration tests
-   - Test containers for E2E
+   - Set up test database strategy (in-memory/separate test DB)
+   - Progressive approach: In-memory (fastest) → Separate test DB → Test containers (if needed)
+   - Match chosen database from research phase
 
 **Example Test Structure:**
 ```typescript

@@ -457,7 +457,7 @@ Issues Identified:
 ```markdown
 ✅ CHECKPOINT 3 COMPLETE: Architecture approved
 
-Tech Stack: [React+Vite / Next.js / Astro] + Tailwind
+Tech Stack: [Chosen stack based on requirements and KB guidance]
 Dev Server: Running at [URL]
 Infrastructure: ✅ Verified
 

@@ -141,10 +141,10 @@ NO EXCEPTIONS
 Bypass iteration limits and ask user immediately when:
 
 1. **Ambiguous Requirements** - Unclear what user wants
-2. **Trade-offs Required** - Competing priorities (REST vs tRPC, Prisma vs Drizzle)
+2. **Trade-offs Required** - Competing priorities between tech choices
 3. **Technical Impossibility** - Requested changes conflict with constraints
 4. **Scope Expansion** - User asking for more than originally specified
-5. **Infrastructure Failure** - npm install or database setup won't work after retries
+5. **Infrastructure Failure** - Dependencies or setup won't work after retries
 
 ---
 
@@ -299,13 +299,25 @@ Please confirm requirements and workflow options to proceed.
 
 **Requirements:** [from Phase 1]
 
-Research and document tech stack recommendations:
-- Framework (Next.js/Hono/etc.)
-- Database ORM (Prisma/Drizzle)
-- Authentication (Auth.js/Clerk/Lucia)
-- API pattern (REST/tRPC/GraphQL)
-- State management (if full-stack)
-- Testing strategy
+Research and document tech stack recommendations using the knowledge base:
+
+**IMPORTANT: Query KB first:**
+- mcp__worklog__search_knowledge(query="team experience context")
+- mcp__worklog__search_knowledge(query="technology selection framework")
+- mcp__worklog__search_knowledge(query="development philosophy simple")
+
+**Research approach:**
+1. Check if PRD specifies tech stack → Use those specifications
+2. If not specified → Research options, query KB for team context, justify choices
+3. Follow progressive decision frameworks (e.g., localStorage → SQLite → PostgreSQL → Specialized)
+
+Document recommendations for:
+- Framework (based on requirements: full-stack, API-only, monorepo)
+- Database & ORM (progressive approach based on scale/persistence needs)
+- Authentication (based on complexity and user requirements)
+- API pattern (based on type safety and public vs internal needs)
+- State management (if full-stack - keep simple, start with framework defaults)
+- Testing strategy (based on coverage needs and CI/CD)
 
 Save to: research/tech-stack-analysis.md
 
@@ -320,7 +332,7 @@ Report when complete.
 - [ ] Dependencies listed
 
 **Common Issues:**
-- Framework overkill (Next.js for simple API)
+- Framework doesn't match requirements (overengineered or underengineered)
 - Missing trade-off analysis
 - Auth strategy unclear
 
@@ -349,7 +361,7 @@ Please revise and resubmit.
 
 **Your Role:**
 1. Dispatch @appgen for database schema design
-2. Review schema deliverable (database/schema.md + prisma/schema.prisma)
+2. Review schema deliverable (database/schema.md + ORM schema files)
 3. Validate:
    - Entities match requirements
    - Relationships correct (one-to-many, many-to-many)
@@ -363,7 +375,7 @@ Please revise and resubmit.
 **Requirements:** [from Phase 1]
 **Tech Stack:** [from Phase 2]
 
-Design database schema using [Prisma/Drizzle]:
+Design database schema using chosen ORM/database approach:
 - Identify entities from requirements
 - Define relationships
 - Add indexes for query patterns
@@ -371,7 +383,7 @@ Design database schema using [Prisma/Drizzle]:
 
 Save to:
 - database/schema.md (documentation)
-- prisma/schema.prisma (or drizzle equivalent)
+- ORM schema file(s) based on chosen tech stack
 
 Report when complete.
 ```
@@ -485,10 +497,15 @@ cd "${WORKTREE_DIR}"
 **Requirements:** [from Phase 1]
 **Tech Stack:** [from Phase 2]
 
+**Query KB for tooling standards:**
+- mcp__worklog__search_knowledge(query="team experience context")
+- Use chosen framework from research phase
+- Query for project setup patterns and tooling preferences
+
 Scaffold project:
 - Initialize project with chosen framework
 - Install dependencies
-- Configure TypeScript, ESLint, Prettier
+- Configure tooling (query KB for standards)
 - Create folder structure
 - Initialize git on feat/initial-implementation
 
@@ -628,12 +645,16 @@ Report findings. Focus on critical issues only.
 **Requirements:** [from Phase 1]
 **Tech Stack:** [from Phase 2]
 
+**Query KB for testing patterns:**
+- mcp__worklog__search_knowledge(query="team experience context")
+- Use testing strategy defined in research phase
+
 Set up test infrastructure:
-- Configure Vitest for unit tests
-- Configure Supertest for API integration tests
-- Configure Playwright for E2E (if full-stack)
+- Configure unit test framework (based on research)
+- Configure integration test tools (based on research)
+- Configure E2E test framework (if full-stack, based on research)
 - Generate example test files
-- Set up test database strategy
+- Set up test database strategy (progressive: in-memory → separate DB → containers)
 
 Run tests to verify they pass.
 
