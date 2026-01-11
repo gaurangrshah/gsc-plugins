@@ -2,12 +2,30 @@
 
 Decision framework for selecting appropriate database technology based on project requirements. Used when knowledge base has no explicit preference.
 
+## First Question (When No Preference Specified)
+
+**Before selecting a database, ask the user:**
+
+> "Would you like to stub the database layer for now using the adapter pattern?
+> This lets you build features faster and defer the database decision until requirements are clearer."
+
+Options:
+1. **Yes, stub it** → Use Level 0 (in-memory adapter)
+2. **No, choose now** → Continue to decision tree below
+
 ## Decision Tree
 
 ```
-START: What type of data?
+START: Stub or real database?
 │
-├─► Structured, relational → SQL Database
+├─► Stub for now (fastest) → Level 0: Adapter Pattern
+│   • Build features without DB setup
+│   • Swap implementation later
+│   • Perfect for prototypes/MVPs
+│
+└─► Real database → What type of data?
+    │
+    ├─► Structured, relational → SQL Database
 │   │
 │   ├─► Embedded/local app → SQLite
 │   │   • Single user
@@ -51,7 +69,81 @@ START: What type of data?
 
 ## Progressive Complexity Scale
 
-### Level 1: localStorage (Simplest)
+### Level 0: Stub with Adapter Pattern (Fastest Start)
+**Use when:**
+- Rapid prototyping / MVP
+- Requirements still unclear
+- Want to defer DB decision
+- Focus on business logic first
+
+**Pattern:** Define a repository interface, implement with in-memory storage.
+
+```typescript
+// types/repository.ts - Define the contract
+interface UserRepository {
+  findById(id: string): Promise<User | null>
+  findByEmail(email: string): Promise<User | null>
+  create(data: CreateUserInput): Promise<User>
+  update(id: string, data: UpdateUserInput): Promise<User>
+  delete(id: string): Promise<void>
+}
+
+// lib/repositories/user-stub.ts - In-memory implementation
+class UserStubRepository implements UserRepository {
+  private users: Map<string, User> = new Map()
+
+  async findById(id: string): Promise<User | null> {
+    return this.users.get(id) ?? null
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    return [...this.users.values()].find(u => u.email === email) ?? null
+  }
+
+  async create(data: CreateUserInput): Promise<User> {
+    const user: User = {
+      id: crypto.randomUUID(),
+      ...data,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    this.users.set(user.id, user)
+    return user
+  }
+
+  async update(id: string, data: UpdateUserInput): Promise<User> {
+    const user = this.users.get(id)
+    if (!user) throw new Error('User not found')
+    const updated = { ...user, ...data, updatedAt: new Date() }
+    this.users.set(id, updated)
+    return updated
+  }
+
+  async delete(id: string): Promise<void> {
+    this.users.delete(id)
+  }
+}
+
+// lib/repositories/index.ts - Factory for swapping implementations
+export function createUserRepository(): UserRepository {
+  // Swap this line when ready for real DB
+  return new UserStubRepository()
+  // return new UserPrismaRepository(prisma)
+  // return new UserDrizzleRepository(db)
+}
+```
+
+**Benefits:**
+- Zero setup time - start coding immediately
+- Tests run fast (no DB connection)
+- Easy to swap implementation later
+- Business logic stays unchanged
+
+**Upgrade trigger:** Need data persistence, multiple users, production deployment
+
+---
+
+### Level 1: localStorage (Client-Side Only)
 **Use when:**
 - Client-side only data
 - User preferences

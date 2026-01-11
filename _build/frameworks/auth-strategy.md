@@ -2,12 +2,30 @@
 
 Decision framework for selecting authentication approach based on project requirements. Used when knowledge base has no explicit preference.
 
+## First Question (When No Preference Specified)
+
+**Before selecting an auth strategy, ask the user:**
+
+> "Would you like to stub authentication for now using the adapter pattern?
+> This lets you build protected routes and user features without setting up auth infrastructure yet."
+
+Options:
+1. **Yes, stub it** → Use Level 0 (mock auth adapter)
+2. **No, choose now** → Continue to decision tree below
+
 ## Decision Tree
 
 ```
-START: What type of auth do you need?
+START: Stub or real auth?
 │
-├─► Simple email/password → Auth.js (NextAuth)
+├─► Stub for now (fastest) → Level 0: Adapter Pattern
+│   • Build protected features without auth setup
+│   • Swap implementation later
+│   • Perfect for prototypes/MVPs
+│
+└─► Real auth → What type of auth do you need?
+    │
+    ├─► Simple email/password → Auth.js (NextAuth)
 │   │
 │   ├─► + Social logins → Auth.js with providers
 │   ├─► + Magic links → Auth.js + Resend
@@ -38,10 +56,108 @@ START: What type of auth do you need?
 
 ## Progressive Complexity Scale
 
-### Level 1: Session-Only (Simplest)
+### Level 0: Stub with Adapter Pattern (Fastest Start)
+**Use when:**
+- Rapid prototyping / MVP
+- Requirements still unclear
+- Want to defer auth decision
+- Focus on features first
+
+**Pattern:** Define an auth interface, implement with mock user.
+
+```typescript
+// types/auth.ts - Define the contract
+interface AuthService {
+  getCurrentUser(): Promise<User | null>
+  login(credentials: LoginInput): Promise<User>
+  logout(): Promise<void>
+  isAuthenticated(): Promise<boolean>
+  requireAuth(): Promise<User>  // Throws if not authenticated
+}
+
+interface User {
+  id: string
+  email: string
+  name: string
+  role: 'user' | 'admin'
+}
+
+// lib/auth/auth-stub.ts - Mock implementation
+class AuthStubService implements AuthService {
+  private currentUser: User | null = {
+    id: 'stub-user-1',
+    email: 'dev@example.com',
+    name: 'Dev User',
+    role: 'admin'  // Full access for development
+  }
+
+  async getCurrentUser(): Promise<User | null> {
+    return this.currentUser
+  }
+
+  async login(credentials: LoginInput): Promise<User> {
+    // Accept any credentials in stub mode
+    this.currentUser = {
+      id: 'stub-user-1',
+      email: credentials.email,
+      name: 'Dev User',
+      role: 'admin'
+    }
+    return this.currentUser
+  }
+
+  async logout(): Promise<void> {
+    this.currentUser = null
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    return this.currentUser !== null
+  }
+
+  async requireAuth(): Promise<User> {
+    if (!this.currentUser) {
+      throw new Error('Not authenticated')
+    }
+    return this.currentUser
+  }
+}
+
+// lib/auth/index.ts - Factory for swapping implementations
+export function createAuthService(): AuthService {
+  if (process.env.NODE_ENV === 'development' && process.env.STUB_AUTH) {
+    return new AuthStubService()
+  }
+  // Swap when ready for real auth
+  // return new AuthJsService()
+  // return new ClerkAuthService()
+  return new AuthStubService()  // Default to stub for now
+}
+
+// Usage in components/server actions
+import { createAuthService } from '@/lib/auth'
+
+const auth = createAuthService()
+
+export async function protectedAction() {
+  const user = await auth.requireAuth()
+  // ... do protected stuff
+}
+```
+
+**Benefits:**
+- Zero setup time - start building immediately
+- No OAuth apps, no env vars needed
+- Easy to test different user roles
+- Business logic stays unchanged when swapping
+
+**Upgrade trigger:** Need real users, production deployment, OAuth/social login
+
+---
+
+### Level 1: Session-Only (Simple Real Auth)
 **Use when:**
 - Internal tools
-- Prototype/MVP
+- Simple production needs
 - Single trusted domain
 
 ```typescript
