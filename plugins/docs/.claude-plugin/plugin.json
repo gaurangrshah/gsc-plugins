@@ -1,7 +1,7 @@
 {
   "name": "docs",
-  "version": "1.0.0",
-  "description": "Documentation management and validation for Claude Code projects. Single source of truth philosophy with inline updates, journal reconciliation, and proactive quality assurance.",
+  "version": "1.1.0",
+  "description": "Documentation management and validation with .local.md config support. Single source of truth philosophy with inline updates, journal reconciliation, and worklog integration.",
   "author": {
     "name": "gs"
   },
@@ -17,6 +17,7 @@
     "quality-assurance",
     "single-source-of-truth",
     "changelog",
-    "journal"
+    "journal",
+    "worklog"
   ]
 }

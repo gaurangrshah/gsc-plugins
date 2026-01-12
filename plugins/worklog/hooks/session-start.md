@@ -22,16 +22,16 @@ Inspired by claude-mem's token-efficient approach:
 
 ## Behavior by Hook Mode
 
-Read configuration from `~/.claude/worklog.local.md` frontmatter.
+Read configuration from `~/.gsc-plugins/worklog.local.md` frontmatter.
 
 ### Configuration Check
 
 ```bash
 # Read settings from config
-HOOK_MODE=$(grep -A1 "^hook_mode:" ~/.claude/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
-PROFILE=$(grep -A1 "^profile:" ~/.claude/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
-DB_PATH=$(grep -A1 "^db_path:" ~/.claude/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
-SYSTEM_NAME=$(grep -A1 "^system_name:" ~/.claude/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
+HOOK_MODE=$(grep -A1 "^hook_mode:" ~/.gsc-plugins/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
+PROFILE=$(grep -A1 "^profile:" ~/.gsc-plugins/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
+DB_PATH=$(grep -A1 "^db_path:" ~/.gsc-plugins/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
+SYSTEM_NAME=$(grep -A1 "^system_name:" ~/.gsc-plugins/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
 
 # Expand ~ in path
 DB_PATH="${DB_PATH/#\~/$HOME}"

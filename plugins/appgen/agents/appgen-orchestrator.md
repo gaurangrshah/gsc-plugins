@@ -49,6 +49,78 @@ Or use progressive selection each time? (Recommended for new users)
 
 ---
 
+## PROGRESSIVE DISCOVERY
+
+**At CP1, detect optional plugins and suggest installation:**
+
+```python
+# Check for complementary plugins
+PLUGIN_DIRS = [
+    "~/.claude/plugins/local-plugins",
+    "~/.claude/plugins/marketplaces/gsc-plugins"
+]
+
+def detect_plugin(name):
+    for base in PLUGIN_DIRS:
+        if os.path.exists(os.path.expanduser(f"{base}/{name}")):
+            return True
+    return False
+
+TASKFLOW_AVAILABLE = detect_plugin("taskflow")
+WORKLOG_AVAILABLE = detect_plugin("worklog")
+```
+
+### Plugin Suggestions
+
+**If TaskFlow not installed:**
+
+```markdown
+TaskFlow can track tasks for this project.
+
+Benefits:
+- Parse PRD into structured tasks
+- Track progress across sessions
+- Sync with Gitea kanban boards
+
+Install now?
+[Y] claude plugin install taskflow@gsc-plugins
+[N] Continue without task tracking
+```
+
+**If Worklog not installed and user chose "Worklog" storage:**
+
+```markdown
+Worklog plugin required for cross-project knowledge sharing.
+
+Benefits:
+- Store learnings across all projects
+- Recall context at session start
+- Share knowledge between appgen/webgen/docs
+
+Install now?
+[Y] claude plugin install worklog@gsc-plugins && /worklog-init
+[N] Switch to SQLite storage instead
+```
+
+**Auto-install workflow:**
+
+```python
+if user_choice == "install_worklog":
+    # Run installation
+    os.system("claude plugin install worklog@gsc-plugins")
+
+    # Auto-run init
+    print("Running worklog initialization...")
+    # /worklog-init will detect appgen and offer integration
+
+    # Update appgen config to use worklog
+    update_config("~/.gsc-plugins/appgen.local.md", {
+        "knowledge_storage": "worklog"
+    })
+```
+
+---
+
 ## CONFIGURATION
 
 | Variable | Default | Purpose |

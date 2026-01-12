@@ -1,7 +1,7 @@
 {
   "name": "taskflow",
-  "version": "1.1.0",
-  "description": "AI-powered task management system. Transform PRDs into structured, dependency-aware tasks with issue tracker integration (Gitea/GitHub) and mandatory TodoWrite.",
+  "version": "2.0.0",
+  "description": "AI-powered task management with backend abstraction. Supports Local, Plane, GitHub, and Linear backends. Transform PRDs into structured tasks or add ad-hoc tasks with hygiene tracking.",
   "author": {
     "name": "gs"
   },
@@ -16,8 +16,10 @@
     "productivity",
     "checkpoints",
     "dependencies",
-    "gitea",
+    "plane",
     "github",
-    "issue-tracking"
+    "linear",
+    "issue-tracking",
+    "backend-abstraction"
   ]
 }

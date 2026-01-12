@@ -1,7 +1,7 @@
 {
   "name": "webgen",
-  "version": "1.6.0",
-  "description": "Generate production-ready websites from natural language descriptions with orchestrated quality control, competitive research, git worktree support, optional TaskFlow integration, and comprehensive documentation",
+  "version": "2.0.0",
+  "description": "Generate production-ready websites from natural language. Part of the unified GSC plugins ecosystem with query-first knowledge, progressive discovery, and cross-plugin integration.",
   "author": {
     "name": "gs"
   },
@@ -20,6 +20,7 @@
     "orchestrated",
     "code-review",
     "accessibility",
-    "wcag"
+    "wcag",
+    "ecosystem"
   ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "appgen",
-  "version": "1.1.0",
-  "description": "Generate full-stack applications and APIs from natural language descriptions with orchestrated quality control, git worktree support, database design, authentication, and comprehensive testing",
+  "version": "2.0.0",
+  "description": "Generate full-stack applications and APIs from natural language. Part of the unified GSC plugins ecosystem with query-first knowledge, progressive discovery, and cross-plugin integration.",
   "author": {
     "name": "gs"
   },
@@ -19,6 +19,7 @@
     "scaffold",
     "orchestrated",
     "code-review",
-    "testing"
+    "testing",
+    "ecosystem"
   ]
 }

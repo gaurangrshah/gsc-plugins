@@ -162,7 +162,7 @@ Troubleshooting:
 
 ### Step 4: Create Configuration
 
-Create `.claude/worklog.local.md`:
+Create `~/.gsc-plugins/worklog.local.md`:
 
 ```markdown
 ---

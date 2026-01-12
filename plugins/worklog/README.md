@@ -2,7 +2,7 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions.
 
-**Version:** 1.6.1
+**Version:** 1.7.0
 
 ## Overview
 
@@ -279,7 +279,7 @@ Sessions are compressed into semantic learnings, not raw transcripts:
 
 Automatically capture significant file changes during sessions. **OFF by default.**
 
-Enable in `~/.claude/worklog.local.md`:
+Enable in `~/.gsc-plugins/worklog.local.md`:
 ```yaml
 ---
 capture_observations: true          # Enable PostToolUse hook
@@ -509,7 +509,7 @@ Install with: `sqlite3 $WORKLOG_DB_PATH < schema/domain-agency.sql`
 
 ## Configuration
 
-Settings stored in `~/.claude/worklog.local.md`:
+Settings stored in `~/.gsc-plugins/worklog.local.md`:
 
 **SQLite Configuration:**
 ```yaml
@@ -517,7 +517,7 @@ Settings stored in `~/.claude/worklog.local.md`:
 profile: standard
 backend: sqlite
 db_path: ~/.claude/worklog/worklog.db
-mode: local
+hook_mode: light
 system_name: my-system
 ---
 ```
@@ -528,6 +528,7 @@ system_name: my-system
 profile: standard
 backend: postgresql
 # Connection via DATABASE_URL or PG* environment variables
+hook_mode: light
 system_name: my-system
 ---
 ```
@@ -804,7 +805,54 @@ Directory needs write permission (for journal file):
 chmod 775 /path/to/db/directory
 ```
 
+## Plugin Discovery
+
+During `/worklog-init`, worklog automatically detects other GSC plugins and offers integration:
+
+### Detected Plugins
+
+| Plugin | Integration |
+|--------|-------------|
+| **appgen** | SessionStart/Stop hooks provide context during app generation |
+| **webgen** | SessionStart/Stop hooks provide context during web generation |
+| **taskflow** | SessionStart/Stop hooks track task work sessions |
+| **docs** | Bidirectional: docs stores TO worklog, memory-sync promotes FROM worklog |
+
+### Knowledge Import
+
+If existing knowledge files are found from other plugins, worklog offers to import them:
+
+```
+Found 23 knowledge files from other plugins:
+  - appgen/webgen: 15 files at ~/.gsc-plugins/knowledge
+  - docs: 8 files at ~/.gsc-plugins/knowledge
+
+Import existing knowledge into worklog? (y/n)
+```
+
+Import is **non-destructive** - original files are preserved.
+
+### Ecosystem Integration
+
+All GSC plugins use `~/.gsc-plugins/` for configuration:
+
+| Plugin | Config Location |
+|--------|-----------------|
+| worklog | `~/.gsc-plugins/worklog.local.md` |
+| appgen | `~/.gsc-plugins/appgen.local.md` |
+| webgen | `~/.gsc-plugins/webgen.local.md` |
+| taskflow | `~/.gsc-plugins/taskflow.local.md` |
+| docs | `~/.gsc-plugins/docs.local.md` |
+
+Project-specific configs override globals via `./.{plugin}.local.md`.
+
 ## Version History
+
+### 1.7.0
+- **Unified Configuration**: Config moved to `~/.gsc-plugins/worklog.local.md`
+- **Plugin Discovery**: Auto-detect other GSC plugins during init
+- **Knowledge Import**: Import existing knowledge from other plugins
+- **Ecosystem Integration**: Part of unified GSC plugins ecosystem
 
 ### 1.6.1
 - **Security Hardening**: Comprehensive security review and fixes
