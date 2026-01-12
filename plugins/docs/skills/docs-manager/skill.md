@@ -9,51 +9,48 @@ Maintain documentation using the single source of truth philosophy. All system d
 
 ## Prerequisites
 
-- Environment variables configured (see Configuration below)
+- Run `/docs-init` to create configuration
 - Optional: Worklog plugin for cross-session persistence
 
 ## Configuration
 
-Set these environment variables or create a local config file (e.g., `~/.claude/docs.local.md`):
+> **See:** `_core/config-loader.md` for full config loading logic
 
-```bash
-# Required - set for your environment
-DOCS_ROOT="${DOCS_ROOT:-~/docs}"
-MAIN_GUIDE="${MAIN_GUIDE:-$DOCS_ROOT/guide.md}"
-KNOWLEDGE_BASE="${KNOWLEDGE_BASE:-~/.claude/knowledge}"
+Configuration is loaded from `.local.md` files with YAML frontmatter:
 
-# Optional - worklog integration (auto-detected if worklog plugin installed)
-WORKLOG_DB="${WORKLOG_DB:-}"
-
-# Optional - documentation query script
-DOCS_QUERY_SCRIPT="${DOCS_QUERY_SCRIPT:-}"
+```
+1. ./.docs.local.md           (project-specific)
+2. ~/.gsc-plugins/docs.local.md   (global)
 ```
 
-### Example Configurations
+### Config File Format
 
-**With Worklog Integration:**
-```bash
-DOCS_ROOT=~/docs
-MAIN_GUIDE=~/docs/system-guide.md
-KNOWLEDGE_BASE=~/.claude/knowledge
-WORKLOG_DB=~/.claude/worklog/worklog.db
-DOCS_QUERY_SCRIPT=~/scripts/query-docs.sh
+```yaml
+---
+docs_root: ~/docs
+main_guide: ~/docs/guide.md
+knowledge_base: ~/.gsc-plugins/knowledge
+
+worklog:
+  enabled: true
+  use_mcp: true  # Use MCP tools if available
+
+defaults:
+  frontmatter_required: true
+  journal_dir: /tmp
+---
+
+# Docs Configuration
 ```
 
-**Shared Database (Multi-System):**
-```bash
-DOCS_ROOT=~/docs
-MAIN_GUIDE=~/docs/system-guide.md
-KNOWLEDGE_BASE=~/.claude/knowledge
-WORKLOG_DB=/mnt/share/path/to/worklog.db  # Adjust to your mount path
-DOCS_QUERY_SCRIPT=~/scripts/query-docs.sh
-```
+### Quick Setup
 
-**Standalone (no worklog):**
 ```bash
-DOCS_ROOT=~/docs
-MAIN_GUIDE=~/docs/project-guide.md
-KNOWLEDGE_BASE=~/.claude/knowledge
+# Interactive setup (recommended)
+/docs-init
+
+# Or with specific options
+/docs-init --path ~/docs --global --with-worklog
 ```
 
 ---
@@ -909,5 +906,6 @@ WHERE status != 'archived' ORDER BY importance DESC LIMIT 10;"
 
 ---
 
-**Skill Version:** 2.0.0
+**Skill Version:** 2.1.0
 **Philosophy:** Single source of truth. Inline updates. Structured knowledge. Queryable metadata. Journal-driven reconciliation. Cross-system worklog.db persistence.
+**Config:** Uses `.local.md` files with YAML frontmatter. See `_core/config-loader.md`.

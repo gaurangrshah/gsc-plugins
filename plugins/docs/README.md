@@ -2,7 +2,7 @@
 
 **Docs** is a Claude Code plugin for documentation management and quality assurance. It enforces a single source of truth philosophy with inline updates, journal reconciliation, and proactive validation.
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 ## Installation
 
@@ -46,14 +46,24 @@ The plugin provides two complementary skills: **docs-manager** for creating and 
 
 ## Configuration
 
-Set environment variables or create `~/.claude/docs.local.md`:
+Configuration uses `.local.md` files with YAML frontmatter:
 
-```bash
-export DOCS_ROOT="~/docs"
-export MAIN_GUIDE="$DOCS_ROOT/guide.md"
-export KNOWLEDGE_BASE="~/.claude/knowledge"
-export WORKLOG_DB=""  # Optional: path to worklog.db
+**Project-level:** `./.docs.local.md`
+**Global:** `~/.gsc-plugins/docs.local.md`
+
+```yaml
+---
+docs_root: ~/docs
+main_guide: ~/docs/guide.md
+knowledge_base: ~/.gsc-plugins/knowledge
+
+worklog:
+  enabled: true
+  use_mcp: true
+---
 ```
+
+Run `/docs-init` to create configuration interactively.
 
 ## Commands
 
@@ -79,7 +89,7 @@ export WORKLOG_DB=""  # Optional: path to worklog.db
 
 2. Configure environment (auto-created by init):
    ```
-   ~/.claude/docs.local.md
+   ~/.gsc-plugins/docs.local.md
    ```
 
 3. Start documenting with inline updates to main guide

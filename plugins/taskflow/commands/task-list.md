@@ -1,181 +1,119 @@
 ---
+name: task-list
 description: List all tasks with status and filtering
+args: [--status=...] [--priority=...] [--type=...] [--search="..."]
+version: "2.0"
 ---
 
 # /task-list
 
-Display all tasks in the current project with their status, priority, and dependencies.
+List tasks from the configured backend with optional filtering.
 
-## What This Command Does
+## Usage
 
-1. Load tasks from `.tasks/tasks.json`
-2. Apply any filters (status, priority)
-3. Display formatted task list
-4. Show summary statistics
+```bash
+/task-list [--status=pending,in_progress] [--priority=high] [--type=epic] [--search="auth"]
+```
 
-## Arguments
+## Filters
 
-- `--status=<status>` - Filter by status (pending, in_progress, done, blocked, deferred)
-- `--priority=<priority>` - Filter by priority (high, medium, low)
-- `--with-subtasks` - Include subtasks in output
-- `--blocked` - Show only tasks with unsatisfied dependencies
+| Flag | Values | Description |
+|------|--------|-------------|
+| `--status` | pending, in_progress, done, blocked, deferred, cancelled | Filter by status |
+| `--priority` | high, medium, low | Filter by priority |
+| `--type` | epic, task, subtask | Filter by type |
+| `--search` | string | Full-text search |
+| `--limit` | number | Max results (default: 20) |
 
-## Prerequisites
-
-- Project must be initialized with tasks (`.tasks/tasks.json` exists)
+---
 
 ## Workflow
 
-### Step 1: Load Tasks
-
-Read `.tasks/tasks.json` from current project directory.
-
-If file doesn't exist or is empty:
-```
-No tasks found in this project.
-
-Run /task-init to initialize, then /task-parse to generate tasks from a PRD.
-```
-
-### Step 2: Apply Filters
-
-Filter tasks based on arguments:
+### Step 1: Load Backend
 
 ```python
-tasks = all_tasks
-
-if status_filter:
-    tasks = [t for t in tasks if t.status == status_filter]
-
-if priority_filter:
-    tasks = [t for t in tasks if t.priority == priority_filter]
-
-if blocked_filter:
-    tasks = [t for t in tasks if has_unsatisfied_dependencies(t)]
+backend = loadBackend()
+if not backend:
+    triggerSetup()
+    return
 ```
 
-### Step 3: Display Tasks
+### Step 2: Build Filters & Fetch
 
-Format and display task list:
+```python
+filters = {}
+if args.status:
+    filters["status"] = args.status.split(",")
+if args.priority:
+    filters["priority"] = args.priority.split(",")
+if args.type:
+    filters["type"] = args.type.split(",")
+if args.search:
+    filters["search"] = args.search
+filters["limit"] = args.limit or 20
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Tasks: <project-name>                                           │
-│ Source: <prd-source>                                            │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ✓ 1. [HIGH] Set up project structure                           │
-│                                                                 │
-│  ● 2. [HIGH] Implement database schema              (needs: 1)  │
-│     ├── ✓ 2.1 Create user table                                 │
-│     ├── ● 2.2 Create posts table                                │
-│     └── ○ 2.3 Add indexes                                       │
-│                                                                 │
-│  ○ 3. [HIGH] Implement authentication               (needs: 1)  │
-│                                                                 │
-│  ○ 4. [MED]  Create API endpoints                   (needs: 2,3)│
-│                                                                 │
-│  ◌ 5. [LOW]  Add caching layer                      (needs: 4)  │
-│     └── BLOCKED: waiting on task 4                              │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ Summary: 5 tasks (1 done, 1 in progress, 2 pending, 1 blocked)  │
-│ Next available: Task 3 - Implement authentication               │
-└─────────────────────────────────────────────────────────────────┘
+tasks = backend.listTasks(filters)
 ```
 
-### Status Icons
+### Step 3: Display
 
-| Icon | Status | Meaning |
-|------|--------|---------|
-| ✓ | done | Completed |
-| ● | in_progress | Currently working |
-| ○ | pending | Ready to start |
-| ◌ | blocked | Dependencies not met |
-| ⊘ | deferred | Postponed |
+```python
+info = backend.getBackendInfo()
 
-### Priority Display
+# Header
+print(f"TaskFlow Tasks ({info['type']})")
+if info.get("externalUrl"):
+    print(f"→ {info['externalUrl']}")
+print()
 
-| Priority | Display |
-|----------|---------|
-| high | `[HIGH]` |
-| medium | `[MED]` |
-| low | `[LOW]` |
+# Group by status
+for status in ["in_progress", "pending", "blocked", "done"]:
+    group = [t for t in tasks if t["status"] == status]
+    if group:
+        print(f"{STATUS_LABELS[status]} ({len(group)})")
+        for task in group:
+            print(formatTask(task))
+        print()
 
-### Step 4: Show Summary
-
-After task list, display:
-
-```
-Summary: <total> tasks (<done> done, <in_progress> in progress, <pending> pending, <blocked> blocked)
-Next available: Task <id> - <title>
+# Summary
+print(f"Total: {len(tasks)} tasks")
 ```
 
-## Output Variations
+---
 
-### Default (no flags)
-Shows all tasks with subtasks collapsed, single line per task.
-
-### With --with-subtasks
-Expands subtasks under each parent:
+## Output Format
 
 ```
-● 2. [HIGH] Implement database schema
-   ├── ✓ 2.1 Create user table
-   ├── ● 2.2 Create posts table
-   └── ○ 2.3 Add indexes
+TaskFlow Tasks (plane)
+→ https://plane.internal.muhaha.dev/gsdev/work
+
+In Progress (2)
+● [HIGH] task-001: Implement user authentication
+● [MED]  task-002: Add input validation
+
+Pending (3)
+○ [HIGH] task-003: Create API endpoints
+○ [MED]  task-004: Write unit tests
+○ [LOW]  task-005: Update documentation
+
+Done (1)
+✓ task-006: Set up project structure
+
+Total: 6 tasks
 ```
 
-### With --status=pending
-Shows only pending tasks:
-
-```
-Pending Tasks (3):
-
-  ○ 3. [HIGH] Implement authentication               (needs: 1)
-  ○ 4. [MED]  Create API endpoints                   (needs: 2,3)
-  ○ 6. [LOW]  Write documentation                    (needs: 4,5)
-```
-
-### With --blocked
-Shows tasks that can't start due to dependencies:
-
-```
-Blocked Tasks (2):
-
-  ◌ 4. [MED]  Create API endpoints
-     └── Waiting on: 2 (in_progress), 3 (pending)
-
-  ◌ 5. [LOW]  Add caching layer
-     └── Waiting on: 4 (blocked)
-```
-
-## Error Handling
-
-| Error | Resolution |
-|-------|------------|
-| No `.tasks/tasks.json` | Prompt to run `/task-init` |
-| Empty task list | Show guidance to run `/task-parse` |
-| Invalid filter value | Show valid options |
+---
 
 ## Examples
 
 ```bash
-# List all tasks
-/task-list
-
-# Show only pending tasks
-/task-list --status=pending
-
-# Show high priority tasks with subtasks
-/task-list --priority=high --with-subtasks
-
-# Show blocked tasks
-/task-list --blocked
+/task-list                              # All tasks
+/task-list --status=pending             # Pending only
+/task-list --priority=high              # High priority
+/task-list --search="auth"              # Search
+/task-list --type=epic                  # Epics only
 ```
 
-## Related
+---
 
-- Command: /task-show (detailed view of single task)
-- Command: /task-next (get recommended next task)
-- Command: /task-status (update task status)
+**Command Version:** 2.0

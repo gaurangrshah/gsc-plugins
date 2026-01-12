@@ -1,523 +1,262 @@
 ---
-description: Initialize TaskFlow task tracking in current project
+name: task-init
+description: Initialize TaskFlow in current project
+args: [--backend=local|plane|github] [--global]
+version: "2.0"
 ---
 
 # /task-init
 
-Initialize the TaskFlow task management system in the current project directory.
+Initialize TaskFlow task tracking with backend selection.
 
-## What This Command Does
+## Usage
 
-1. Detect current environment (from hostname or environment variables)
-2. Create `.tasks/` directory structure with tag support
-3. Create `master` tag with empty `tasks.json`
-4. Create `state.json` to track current tag
-5. **Auto-detect Gitea** and offer to enable sync (graceful fallback if unavailable)
-6. Register project in central index (if index path configured)
+```bash
+/task-init                           # Interactive setup
+/task-init --backend=local           # Quick local setup
+/task-init --backend=plane --global  # Plane as global default
+```
 
 ## Arguments
 
-- `[project-name]` - Optional project name (defaults to directory name)
-- `--no-index` - Skip registering in central index
-- `--tag=<name>` - Create with initial tag other than `master`
-- `--no-gitea` - Skip Gitea auto-detection (local only)
-- `--gitea` - Enable Gitea sync without prompting (assumes available)
+| Flag | Description |
+|------|-------------|
+| `--backend` | Skip detection, use specified backend |
+| `--global` | Save config globally (all projects) |
+| `--project` | Save config for this project only |
 
-## Prerequisites
-
-- Must be in a directory (project root)
-- Write permissions to current directory
+---
 
 ## Workflow
 
-### Step 1: Environment Detection
-
-Read hostname and load config from `~/.claude/task-config.json`:
-
-```bash
-HOSTNAME=$(hostname)
-```
-
-Match against configured environments to get workspace path and index location.
-
-If no environment matches, use defaults with warning:
-```
-Warning: Unknown environment 'my-host'. Using default configuration.
-Project will not be added to central index.
-```
-
-### Step 2: Validate Location
-
-**Check current directory is suitable:**
+### Step 1: Check Existing Config
 
 ```python
-cwd = os.getcwd()
+# Check for existing config
+if exists("./.taskflow.local.md"):
+    print("TaskFlow already configured for this project.")
+    print("Use /task config to view or change settings.")
+    return
 
-# Must be a directory (not root, not home directly)
-if cwd in ['/', os.path.expanduser('~')]:
-    error("Cannot initialize TaskFlow in root or home directory.")
-    suggest("Navigate to a project directory first.")
-
-# Should not be inside .tasks/ or similar
-if '.tasks' in cwd:
-    error("Cannot initialize inside a .tasks directory.")
+if exists("~/.gsc-plugins/taskflow.local.md") and not args.project:
+    print("Global TaskFlow config exists.")
+    response = AskUserQuestion({
+        "question": "Use global config or create project-specific?",
+        "header": "Config",
+        "options": [
+            {"label": "Use global", "description": "Apply existing global settings"},
+            {"label": "Project config", "description": "Create settings for this project only"}
+        ]
+    })
+    if response == "Use global":
+        print("Using global TaskFlow config.")
+        return
 ```
 
-**Check for existing initialization:**
+### Step 2: Detect Available Backends
 
-If `.tasks/` exists:
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ TaskFlow already initialized in this directory                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│ Found: .tasks/                                                  │
-│ Tags: master, feat-auth                                         │
-│ Tasks: 8 total (3 done, 1 in progress)                          │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ Options:                                                        │
-│   • Continue using existing setup                               │
-│   • Reinitialize (WARNING: deletes all tasks)                   │
-│   • Cancel                                                      │
-└─────────────────────────────────────────────────────────────────┘
+→ See `_core/backend-loader.md` for detection logic
+
+```python
+backends = detectBackends()
+# Returns: [
+#   {"name": "local", "available": True, ...},
+#   {"name": "plane", "available": True, "workspace": "gsdev", ...},
+#   {"name": "github", "available": True, "owner": "user", ...}
+# ]
 ```
 
-Use AskUserQuestion for reinitialize decision.
+### Step 3: Display Detection Results
 
-### Step 3: Create Directory Structure
-
-```bash
-mkdir -p .tasks/tags/master
+```
+┌─────────────────────────────────────────────────────────────┐
+│  TaskFlow Setup                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Detected integrations:                                     │
+│    ✓ Plane   - workspace: gsdev                             │
+│    ✓ GitHub  - authenticated as myuser                      │
+│    ✗ Linear  - not detected                                 │
+│                                                             │
+│  Default: Local .tasks/ (no setup required)                 │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Structure created:**
+### Step 4: Select Backend
+
+```python
+if args.backend:
+    selected = args.backend
+else:
+    # Build options - local always first
+    options = [
+        {"label": "Local only (Recommended)", "description": "Use .tasks/ - works offline"}
+    ]
+    for b in backends:
+        if b["name"] != "local" and b["available"]:
+            options.append({"label": b["label"], "description": b["description"]})
+
+    selected = AskUserQuestion({
+        "question": "Where should TaskFlow store tasks?",
+        "header": "Backend",
+        "options": options
+    })
 ```
-.tasks/
-├── config.json          # Project-level config (optional overrides)
-├── state.json           # Current tag tracking
-└── tags/
-    └── master/
-        └── tasks.json   # Default tag task list
-```
 
-### Step 4: Create State File
+### Step 5: Backend-Specific Config
 
-Create `.tasks/state.json`:
+#### Local (default)
 
-```json
-{
-  "currentTag": "master",
-  "lastSwitched": "<ISO-8601-timestamp>",
-  "tags": {
-    "master": {
-      "created": "<ISO-8601-timestamp>",
-      "description": "Main task list"
+No additional config needed.
+
+#### Plane
+
+```python
+if selected == "Plane":
+    # Get projects
+    projects = mcp__plane__list_projects(workspace_slug=detected_workspace)
+
+    project = AskUserQuestion({
+        "question": "Which Plane project?",
+        "header": "Project",
+        "options": [{"label": p["name"], "description": ""} for p in projects["results"]]
+    })
+
+    backend_config = {
+        "workspace": detected_workspace,
+        "project": project
     }
-  }
-}
 ```
 
-### Step 5: Create Tasks File
+#### GitHub
 
-Create `.tasks/tags/master/tasks.json`:
-
-```json
-{
-  "version": "1.0",
-  "project": "<project-name>",
-  "tag": "master",
-  "prdSource": null,
-  "created": "<ISO-8601-timestamp>",
-  "updated": "<ISO-8601-timestamp>",
-  "tasks": []
-}
+```python
+if selected == "GitHub":
+    if detected_repo:
+        confirm = AskUserQuestion({
+            "question": f"Use {detected_owner}/{detected_repo}?",
+            "header": "Repo",
+            "options": [
+                {"label": "Yes", "description": f"Use current repo"},
+                {"label": "Different", "description": "Specify another"}
+            ]
+        })
+        if confirm == "Yes":
+            backend_config = {"owner": detected_owner, "repo": detected_repo}
+        else:
+            # Manual input needed
+            pass
 ```
 
-### Step 6: Issue Tracker Auto-Detection
+### Step 6: Select Scope
 
-Detect available issue tracking systems in priority order:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Issue Tracker Detection                                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│ Priority order:                                                 │
-│   1. Gitea (config file OR repo remote)                         │
-│   2. GitHub (if repo has github.com remote + gh CLI auth'd)     │
-│   3. Local only (TaskFlow JSON files)                           │
-│                                                                 │
-│ IMPORTANT: TodoWrite is ALWAYS mandatory alongside any          │
-│ issue tracker. Tasks sync to both for redundancy.               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+```python
+if not args.global and not args.project:
+    scope = AskUserQuestion({
+        "question": "Save configuration for?",
+        "header": "Scope",
+        "options": [
+            {"label": "This project", "description": "Save to ./.taskflow.local.md"},
+            {"label": "All projects", "description": "Save to ~/.gsc-plugins/taskflow.local.md"}
+        ]
+    })
+else:
+    scope = "All projects" if args.global else "This project"
 ```
 
-**Step 6a: Check Gitea (dual approach)**
+### Step 7: Write Config
 
-**Method B: Check for local config file**
-```bash
-# Check for Gitea config in standard locations
-GITEA_CONFIG=""
-if [ -f ".gitea-config" ]; then
-  GITEA_CONFIG=".gitea-config"
-elif [ -f "$HOME/.config/gitea/credentials" ]; then
-  GITEA_CONFIG="$HOME/.config/gitea/credentials"
-elif [ -n "$GITEA_URL" ] && [ -n "$GITEA_TOKEN" ]; then
-  GITEA_CONFIG="env"
-fi
+```python
+config_content = f"""---
+backend: {selected.lower()}
+
+{selected.lower()}:
+{yaml_dump(backend_config)}
+
+hygiene:
+  requireCompletionNotes: true
+  requireBlockerReason: true
+  promptForNotes: true
+  autoSyncToWorklog: false
+---
+
+# TaskFlow Configuration
+
+Initialized: {datetime.now().isoformat()}
+"""
+
+if scope == "This project":
+    path = "./.taskflow.local.md"
+else:
+    path = os.path.expanduser("~/.gsc-plugins/taskflow.local.md")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+
+write_file(path, config_content)
 ```
 
-**Method C: Check if repo has Gitea remote**
-```bash
-# Check if current repo has a Gitea remote
-GITEA_REMOTE=$(git remote -v 2>/dev/null | grep -iE "gitea|your-gitea-domain" | head -1)
-if [ -n "$GITEA_REMOTE" ]; then
-  echo "Gitea remote detected: $GITEA_REMOTE"
-fi
+### Step 8: Initialize Local Storage (if local backend)
+
+```python
+if selected.lower() == "local":
+    os.makedirs(".tasks", exist_ok=True)
+    write_json(".tasks/tasks.json", {
+        "version": "2.0",
+        "project": os.path.basename(os.getcwd()),
+        "created": datetime.now().isoformat(),
+        "tasks": []
+    })
 ```
 
-**Combined check:**
-```bash
-# Gitea is available if EITHER config exists OR repo has Gitea remote
-if [ -n "$GITEA_CONFIG" ] || [ -n "$GITEA_REMOTE" ]; then
-  # Verify API is reachable (uses GITEA_URL from environment or config)
-  if curl -s --max-time 3 "${GITEA_URL}/api/v1/version" -H "Authorization: token ${GITEA_TOKEN}" 2>/dev/null | grep -q version; then
-    echo "Gitea available and API reachable"
-  fi
-fi
-```
-
-**If Gitea is reachable:**
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Gitea detected at ${GITEA_URL}                                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│ Enable Gitea sync for this project?                             │
-│                                                                 │
-│ This will:                                                      │
-│   • Create issues in your-org/tasks when you run /task-parse    │
-│   • Sync task status changes to Gitea kanban                    │
-│   • Allow visual task management at:                            │
-│     ${GITEA_URL}/your-org/tasks/projects                        │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ [Y]es - Enable Gitea sync                                       │
-│ [N]o  - Check for other options                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Step 6b: Check GitHub (fallback)**
-
-If Gitea unavailable or user declined, check for GitHub:
-
-```bash
-# Check if repo has GitHub remote and gh CLI is authenticated
-if git remote -v 2>/dev/null | grep -q "github.com"; then
-  if gh auth status &>/dev/null; then
-    # Get repo info
-    GITHUB_REPO=$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')
-    echo "GitHub available: $GITHUB_REPO"
-  fi
-fi
-```
-
-**If GitHub is available:**
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ GitHub detected: owner/repo-name                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│ Enable GitHub Issues sync for this project?                     │
-│                                                                 │
-│ This will:                                                      │
-│   • Create GitHub issues when you run /task-parse               │
-│   • Sync task status changes via gh CLI                         │
-│   • View issues at: https://github.com/owner/repo/issues        │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ [Y]es - Enable GitHub sync                                      │
-│ [N]o  - Local TaskFlow only                                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Step 6c: Local fallback**
-
-If neither Gitea nor GitHub available (or user declined both):
-```
-Note: No issue tracker integration available.
-      • Gitea: unreachable
-      • GitHub: no remote or gh CLI not authenticated
-
-      Continuing with local TaskFlow only.
-      Run /task-sync later to enable integration.
-```
-
-**Store issue tracker config:**
-
-Update `.tasks/config.json` based on selection:
-
-**If Gitea enabled:**
-```json
-{
-  "projectName": "<project-name>",
-  "issueTracker": {
-    "type": "gitea",
-    "enabled": true,
-    "repo": "gs/tasks",
-    "autoSync": true,
-    "labelPrefix": "<project-slug>"
-  }
-}
-```
-
-**If GitHub enabled:**
-```json
-{
-  "projectName": "<project-name>",
-  "issueTracker": {
-    "type": "github",
-    "enabled": true,
-    "repo": "owner/repo-name",
-    "autoSync": true,
-    "labelPrefix": "<project-slug>"
-  }
-}
-```
-
-**If no tracker (local only):**
-```json
-{
-  "projectName": "<project-name>",
-  "issueTracker": {
-    "type": "local",
-    "enabled": false
-  }
-}
-```
-
-### Step 7: Create Project Config
-
-Create `.tasks/config.json`:
-
-```json
-{
-  "projectName": "<project-name>",
-  "checkpoints": ["parse", "execute", "complete"],
-  "todoWrite": {
-    "required": true,
-    "syncWithTracker": true
-  },
-  "issueTracker": {
-    "type": "gitea|github|local",
-    "enabled": true|false,
-    "repo": "<repo-path>",
-    "autoSync": true,
-    "labelPrefix": "<project-slug>"
-  }
-}
-```
-
-**TodoWrite config (MANDATORY):**
-- `required`: Always `true` - TodoWrite must be used for all TaskFlow projects
-- `syncWithTracker`: When true, task status changes update both TodoWrite AND issue tracker
-
-**Issue tracker config fields:**
-- `type`: Issue tracker type ("gitea", "github", or "local")
-- `enabled`: Whether external sync is active
-- `repo`: Target repository (format depends on type)
-  - Gitea: "owner/repo" (e.g., "gs/tasks")
-  - GitHub: "owner/repo" (e.g., "gaurangrshah/my-project")
-- `autoSync`: Auto-push after /task-parse and status changes
-- `labelPrefix`: Prefix for labels to group project tasks
-
-**Why TodoWrite is mandatory:**
-1. **Immediate visibility** - See tasks in current Claude Code session
-2. **Redundancy** - If issue tracker is down, work continues
-3. **Session context** - TodoWrite persists across tool calls
-4. **Consistency** - Same workflow regardless of issue tracker
-
-### Step 8: Update Central Index
-
-If index path is configured for environment:
-
-1. Read existing index or create new one
-2. Add/update project entry
-3. Write back to index file
-
-```json
-{
-  "version": "1.0",
-  "projects": {
-    "<project-slug>": {
-      "name": "<project-name>",
-      "path": "<absolute-path-to-project>",
-      "created": "<ISO-8601-timestamp>",
-      "lastAccessed": "<ISO-8601-timestamp>",
-      "currentTag": "master",
-      "stats": {
-        "total": 0,
-        "pending": 0,
-        "in_progress": 0,
-        "done": 0
-      }
-    }
-  }
-}
-```
-
-**Index file creation:**
-If index file doesn't exist, create it:
-```json
-{
-  "version": "1.0",
-  "projects": {}
-}
-```
-
-**Handle index errors gracefully:**
-- If index directory doesn't exist: warn and skip
-- If index file is corrupted: warn, backup, create fresh
-- If no write permission: warn and skip
-
-### Step 9: Confirm Success
-
-**With Gitea enabled:**
-```
-TaskFlow initialized in: ~/projects/my-project
-
-Structure created:
-  .tasks/
-  ├── config.json (gitea: enabled)
-  ├── state.json (tracking: master tag)
-  └── tags/master/tasks.json
-
-Registered in: ~/.task-index.json
-Gitea sync: enabled → your-org/tasks (auto-sync on)
-Kanban: ${GITEA_URL}/your-org/tasks/projects
-
-Next steps:
-  1. Create a PRD document in docs/PRD/
-  2. Run /task-parse docs/PRD/your-feature.md
-     (Tasks will auto-sync to Gitea)
-
-Or run /task to see status overview.
-```
-
-**Without Gitea (local only):**
-```
-TaskFlow initialized in: ~/projects/my-project
-
-Structure created:
-  .tasks/
-  ├── config.json (gitea: disabled)
-  ├── state.json (tracking: master tag)
-  └── tags/master/tasks.json
-
-Registered in: ~/.task-index.json
-Gitea sync: disabled (run /task-sync to enable later)
-
-Next steps:
-  1. Create a PRD document in docs/PRD/
-  2. Run /task-parse docs/PRD/your-feature.md
-
-Or run /task to see status overview.
-```
-
-## Edge Cases
-
-### Directory Name Contains Special Characters
+### Step 9: Confirm
 
 ```
-# In directory: ~/projects/My Project (2024)
-/task-init
-
-Project name derived: my-project-2024
-Slug: my-project-2024
-
-Using sanitized name. Override with: /task-init "Custom Name"
+┌─────────────────────────────────────────────────────────────┐
+│  TaskFlow initialized!                                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Backend: Local (.tasks/)                                   │
+│  Config:  ./.taskflow.local.md                              │
+│                                                             │
+│  Get started:                                               │
+│    /task-add "Your first task"                              │
+│    /task-parse docs/PRD/feature.md                          │
+│    /task-list                                               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Sanitization rules:**
-- Lowercase
-- Replace spaces with hyphens
-- Remove special characters except hyphens
-- Collapse multiple hyphens
+---
 
-### Git Repository Detection
-
-If in a git repository, offer to use repo name:
-
-```
-Detected git repository: my-awesome-repo
-
-Use repository name as project name? [Y/n]
-```
-
-### Nested Projects
-
-If parent directory has `.tasks/`:
-
-```
-Warning: Parent directory contains TaskFlow initialization.
-  Parent: ~/projects/.tasks/
-
-Continue with nested initialization? This creates separate task tracking.
-[Y]es / [N]o
-```
-
-### Non-Writable Directory
-
-```
-Error: Cannot write to current directory.
-
-Check permissions:
-  Directory: ~/projects/readonly-project
-  Required: Write permission
-
-Try: sudo chown $USER:$USER /path/to/project
-```
-
-## Error Handling
-
-| Error | Resolution |
-|-------|------------|
-| Root or home directory | Block with clear message |
-| `.tasks/` exists | Offer reinitialize or continue |
-| No write permission | Error with chmod/chown suggestion |
-| Index file corrupt | Backup, warn, continue without index |
-| Index directory missing | Create it or skip indexing |
-| Special chars in name | Sanitize and show result |
-| Nested project | Warn and confirm |
-
-## Examples
+## Quick Setup (No Prompts)
 
 ```bash
-# Initialize in current directory (auto-detects Gitea)
-/task-init
+# Local backend, project scope
+/task-init --backend=local
 
-# Initialize with specific project name
-/task-init my-awesome-project
+# Plane backend, global scope
+/task-init --backend=plane --global
 
-# Initialize without adding to central index
-/task-init --no-index
-
-# Initialize with custom initial tag
-/task-init --tag=phase-1
-
-# Initialize with Gitea sync enabled (skip detection prompt)
-/task-init --gitea
-
-# Initialize local-only, skip Gitea detection entirely
-/task-init --no-gitea
+# GitHub backend with current repo
+/task-init --backend=github
 ```
 
-## Related
+---
 
-- Command: /task-parse (next step after init)
-- Command: /task-tag (manage tags)
-- Command: /task-sync (manual Gitea sync)
-- Design: ~/.claude/knowledge/guides/taskflow-design.md
-- Config: ~/.claude/task-config.json
+## Reconfigure
+
+```bash
+# View current config
+/task config
+
+# Change backend
+/task config --backend=plane
+
+# Reset and re-init
+/task config --reset
+```
+
+---
+
+**Command Version:** 2.0
+**Triggers:** First-run setup flow

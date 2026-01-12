@@ -22,7 +22,7 @@ This hook captures **significant Write/Edit outcomes** - the moments that matter
 
 ## Configuration
 
-This hook is **OFF by default**. Enable via `~/.claude/worklog.local.md`:
+This hook is **OFF by default**. Enable via `~/.gsc-plugins/worklog.local.md`:
 
 ```yaml
 ---
@@ -75,7 +75,7 @@ capture_exclude: ["node_modules/*", "*.lock", ".git/*"]  # Exclude patterns
 ### Step 1: Check if enabled
 
 ```bash
-CAPTURE=$(grep -A1 "^capture_observations:" ~/.claude/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
+CAPTURE=$(grep -A1 "^capture_observations:" ~/.gsc-plugins/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
 
 if [ "$CAPTURE" != "true" ]; then
   # Hook disabled, exit silently
@@ -120,7 +120,7 @@ fi
 ### Step 3: Assess significance
 
 ```bash
-FILTER=$(grep -A1 "^capture_filter:" ~/.claude/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
+FILTER=$(grep -A1 "^capture_filter:" ~/.gsc-plugins/worklog.local.md 2>/dev/null | tail -1 | tr -d ' ')
 FILTER="${FILTER:-significant}"
 
 case "$FILTER" in

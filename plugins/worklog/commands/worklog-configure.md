@@ -23,7 +23,7 @@ Modify worklog settings after initial setup.
 
 ### Step 1: Read Current Configuration
 
-Load settings from `.claude/worklog.local.md`:
+Load settings from `~/.gsc-plugins/worklog.local.md`:
 - `backend`: sqlite or postgresql
 - `profile`: minimal/standard/full
 - `db_path`: SQLite database path
@@ -113,7 +113,7 @@ Select new profile:
 [3] FULL - Aggressive context loading
 ```
 
-Update `.claude/worklog.local.md` and replace CLAUDE.md section with new template.
+Update `~/.gsc-plugins/worklog.local.md` and replace CLAUDE.md section with new template.
 
 ### Step 5: Test Connection
 
@@ -130,7 +130,7 @@ psql -c "SELECT 'Connection OK' as status, COUNT(*) as entries FROM entries;"
 
 ### Step 6: Update Configuration File
 
-Rewrite `.claude/worklog.local.md`:
+Rewrite `~/.gsc-plugins/worklog.local.md`:
 
 ```markdown
 ---

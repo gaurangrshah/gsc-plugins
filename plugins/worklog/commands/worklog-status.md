@@ -11,7 +11,7 @@ Check worklog database connectivity and display usage statistics.
 
 ### Step 1: Load Configuration
 
-Read `.claude/worklog.local.md` for settings:
+Read `~/.gsc-plugins/worklog.local.md` for settings:
 - `backend`: sqlite or postgresql
 - `profile`
 - `db_path` or `database_url`

@@ -16,7 +16,34 @@ This command sets up the worklog database on your system. Choose between:
 
 ## Workflow
 
-### Step 1: Choose Database Backend
+### Step 1: Check Existing Configuration
+
+```python
+# Check for existing config
+config_path = os.path.expanduser("~/.gsc-plugins/worklog.local.md")
+
+if os.path.exists(config_path):
+    print("Worklog already configured.")
+    print(f"Config: {config_path}")
+
+    response = AskUserQuestion({
+        "question": "What would you like to do?",
+        "header": "Config exists",
+        "options": [
+            {"label": "Keep existing", "description": "Exit without changes"},
+            {"label": "Reconfigure", "description": "Update configuration"},
+            {"label": "View config", "description": "Show current settings"}
+        ]
+    })
+
+    if response == "Keep existing":
+        return
+    elif response == "View config":
+        showConfig(config_path)
+        return
+```
+
+### Step 2: Choose Database Backend
 
 ```
 Which database backend would you like to use?
@@ -38,7 +65,7 @@ Which database backend would you like to use?
 
 ### If SQLite Selected:
 
-#### Step 2a: Choose Integration Profile
+#### Step 3a: Choose Integration Profile
 
 **[1] MINIMAL** - Lightweight persistence
 - Manual store/recall via skills
@@ -58,7 +85,7 @@ Which database backend would you like to use?
 - CLAUDE.md addition: ~100 lines
 - Best for: Power users wanting full automation
 
-#### Step 3a: Create Database
+#### Step 4a: Create Database
 
 ```bash
 # Create directory
@@ -69,24 +96,15 @@ mkdir -p ~/.claude/worklog
 sqlite3 ~/.claude/worklog/worklog.db < {plugin_root}/schema/core.sql
 ```
 
-#### Step 4a: Configure Environment
-
-```bash
-# Optional: Set custom database path
-export WORKLOG_DB_PATH=~/.claude/worklog/worklog.db
-
-# Or use default (no config needed)
-```
-
 ---
 
 ### If PostgreSQL Selected:
 
-#### Step 2b: Choose Integration Profile
+#### Step 3b: Choose Integration Profile
 
 Same options as SQLite (MINIMAL, STANDARD, FULL)
 
-#### Step 3b: Configure Connection
+#### Step 4b: Configure Connection
 
 ```
 How would you like to configure the PostgreSQL connection?
@@ -120,7 +138,7 @@ export PGPASSWORD="your-password"
 # Then run: source ~/.zshrc
 ```
 
-#### Step 4b: Test Connection
+#### Step 5b: Test Connection
 
 ```bash
 psql -c "SELECT 1;"
@@ -144,18 +162,12 @@ if [ -f ~/.claude/CLAUDE.md ]; then
   echo "Backed up: CLAUDE.md"
 fi
 
-# Backup existing config if exists
-if [ -f ~/.claude/worklog.local.md ]; then
-  cp ~/.claude/worklog.local.md $BACKUP_DIR/worklog.local.md
-  echo "Backed up: worklog.local.md"
-fi
-
 echo $BACKUP_DIR > ~/.claude/.worklog-backup-path
 ```
 
 ### Step 6: Create Plugin Configuration
 
-Create `.claude/worklog.local.md`:
+Create `~/.gsc-plugins/worklog.local.md`:
 
 ```markdown
 ---
@@ -200,24 +212,152 @@ For PostgreSQL, boot queries use `psql`:
 psql -c "SELECT ..."
 ```
 
-### Step 8: Run Verification
+### Step 8: Plugin Discovery
+
+**Detect other GSC plugins and offer integration:**
+
+```python
+# Scan for other GSC plugin configs
+gsc_plugins_dir = os.path.expanduser("~/.gsc-plugins")
+plugin_configs = glob.glob(f"{gsc_plugins_dir}/*.local.md")
+
+# Check for known plugins
+detected_plugins = []
+for config in plugin_configs:
+    name = os.path.basename(config).replace(".local.md", "")
+    if name != "worklog":
+        detected_plugins.append(name)
+
+# Check for plugin directories
+plugin_dirs = [
+    "~/.claude/plugins/local-plugins",
+    "~/.claude/plugins/marketplaces/gsc-plugins"
+]
+
+for base_dir in plugin_dirs:
+    expanded = os.path.expanduser(base_dir)
+    if os.path.exists(expanded):
+        for item in os.listdir(expanded):
+            if item in ["appgen", "webgen", "taskflow", "docs"]:
+                if item not in detected_plugins:
+                    detected_plugins.append(item)
+
+# Report discovered plugins
+if detected_plugins:
+    print(f"\nDiscovered GSC plugins: {', '.join(detected_plugins)}")
+    print("\nWorklog can provide cross-session context for these plugins:")
+    print("- SessionStart hooks inject recent context")
+    print("- SessionStop hooks capture learnings")
+    print("- Knowledge base shared across all plugins")
+```
+
+**Scan for existing knowledge to import:**
+
+```python
+# Check for markdown knowledge directories
+knowledge_sources = []
+
+# AppGen knowledge
+appgen_kb = os.path.expanduser("~/.gsc-plugins/knowledge")
+if os.path.exists(appgen_kb):
+    md_files = glob.glob(f"{appgen_kb}/**/*.md", recursive=True)
+    if md_files:
+        knowledge_sources.append({
+            "source": "appgen/webgen",
+            "type": "markdown",
+            "path": appgen_kb,
+            "count": len(md_files)
+        })
+
+# Docs knowledge base
+docs_config = loadLocalMdConfig("~/.gsc-plugins/docs.local.md")
+if docs_config and docs_config.get("knowledge_base"):
+    kb_path = os.path.expanduser(docs_config["knowledge_base"])
+    if os.path.exists(kb_path):
+        md_files = glob.glob(f"{kb_path}/**/*.md", recursive=True)
+        if md_files:
+            knowledge_sources.append({
+                "source": "docs",
+                "type": "markdown",
+                "path": kb_path,
+                "count": len(md_files)
+            })
+
+# Offer import if knowledge found
+if knowledge_sources:
+    total_files = sum(k["count"] for k in knowledge_sources)
+    print(f"\nFound {total_files} knowledge files from other plugins:")
+    for ks in knowledge_sources:
+        print(f"  - {ks['source']}: {ks['count']} files at {ks['path']}")
+
+    response = AskUserQuestion({
+        "question": "Import existing knowledge into worklog?",
+        "header": "Knowledge Import",
+        "options": [
+            {"label": "Yes (Recommended)", "description": "Import and centralize all knowledge"},
+            {"label": "No", "description": "Start fresh, keep separate"}
+        ]
+    })
+
+    if "Yes" in response:
+        importKnowledge(knowledge_sources)
+```
+
+### Step 9: Import Knowledge (if requested)
+
+```python
+def importKnowledge(sources):
+    """Import markdown knowledge files into worklog database."""
+    imported = 0
+
+    for source in sources:
+        if source["type"] == "markdown":
+            for md_file in glob.glob(f"{source['path']}/**/*.md", recursive=True):
+                # Parse frontmatter
+                with open(md_file, 'r') as f:
+                    content = f.read()
+
+                frontmatter, body = parseFrontmatter(content)
+
+                # Map to knowledge_base entry
+                title = frontmatter.get("title", os.path.basename(md_file))
+                category = frontmatter.get("type", "general")
+                tags = frontmatter.get("tags", source["source"])
+
+                # Insert into worklog
+                mcp__worklog__store_knowledge(
+                    category=category,
+                    title=title,
+                    content=body,
+                    tags=tags,
+                    source_agent=f"import:{source['source']}"
+                )
+                imported += 1
+
+    print(f"\nImported {imported} knowledge entries to worklog.")
+    print("Original files preserved (non-destructive import).")
+```
+
+### Step 10: Run Verification
 
 **SQLite Verification:**
 ```bash
 DB=~/.claude/worklog/worklog.db
-[ -f "$DB" ] && echo "Database: ✅" || echo "Database: ❌"
-sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';" && echo "Schema: ✅"
-grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: ✅" || echo "CLAUDE.md: ❌"
+[ -f "$DB" ] && echo "Database: OK" || echo "Database: MISSING"
+sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';" && echo "Schema: OK"
+grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: OK" || echo "CLAUDE.md: MISSING"
+[ -f ~/.gsc-plugins/worklog.local.md ] && echo "Config: OK" || echo "Config: MISSING"
 ```
 
 **PostgreSQL Verification:**
 ```bash
-psql -c "SELECT 1;" && echo "Connection: ✅" || echo "Connection: ❌"
-psql -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" && echo "Schema: ✅"
-grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: ✅" || echo "CLAUDE.md: ❌"
+psql -c "SELECT 1;" && echo "Connection: OK" || echo "Connection: FAILED"
+psql -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" && echo "Schema: OK"
+grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: OK" || echo "CLAUDE.md: MISSING"
+[ -f ~/.gsc-plugins/worklog.local.md ] && echo "Config: OK" || echo "Config: MISSING"
 ```
 
-### Step 9: User Confirmation
+### Step 11: User Confirmation
 
 ```
 Installation complete!
@@ -227,9 +367,10 @@ Profile:  {profile}
 Hook:     {hook_mode}
 
 Changes made:
-- Created: ~/.claude/worklog.local.md
+- Created: ~/.gsc-plugins/worklog.local.md
 - Updated: ~/.claude/CLAUDE.md
 {If SQLite: - Created: ~/.claude/worklog/worklog.db}
+{If imported: - Imported {n} knowledge entries}
 
 Keep these changes? (y/n)
 ```
@@ -237,13 +378,15 @@ Keep these changes? (y/n)
 **If YES:** Finalize installation
 **If NO:** Rollback from backup
 
-### Step 10: Provide Next Steps
+### Step 12: Provide Next Steps
 
 ```
 Worklog initialized successfully!
 
 Backend: {backend}
 Profile: {profile}
+{If plugins discovered:}
+Integrates with: {detected_plugins}
 
 Next steps:
 - Use `memory-store` skill to save learnings
@@ -269,13 +412,18 @@ MCP tools available:
 **CLAUDE.md not found:**
 - Create minimal CLAUDE.md with worklog section
 
+**Import fails:**
+- Original files are preserved
+- Check file permissions
+- Verify frontmatter format
+
 ## Rollback Command
 
 ```bash
 BACKUP=$(ls -td ~/.claude/.worklog-backup-* 2>/dev/null | head -1)
 if [ -n "$BACKUP" ]; then
   cp $BACKUP/CLAUDE.md ~/.claude/CLAUDE.md 2>/dev/null
-  rm -f ~/.claude/worklog.local.md
+  rm -f ~/.gsc-plugins/worklog.local.md
   echo "Restored from $BACKUP"
 fi
 ```

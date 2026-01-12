@@ -2,7 +2,7 @@
 
 A Claude Code plugin for transforming Product Requirements Documents (PRDs) into structured, dependency-aware tasks with human-in-the-loop checkpoints.
 
-**Version:** 1.1.0
+**Version:** 2.0.0
 
 ## Overview
 
@@ -127,14 +127,16 @@ Create `~/.claude/task-config.json`:
 | Command | Description |
 |---------|-------------|
 | `/task` | Conversational interface - status overview and natural language routing |
-| `/task-init` | Initialize TaskFlow in current project |
+| `/task-init` | Initialize TaskFlow in current project (with backend selection) |
+| `/task-add` | Add an ad-hoc task (no PRD required) |
 | `/task-parse <prd>` | Generate tasks from a PRD document |
 | `/task-list` | List all tasks with filtering options |
 | `/task-next` | Get AI-recommended next task |
 | `/task-show <id>` | View detailed task information |
-| `/task-status <id> <status>` | Update task status |
+| `/task-status <id> <status>` | Update task status (with hygiene prompts) |
 | `/task-tag` | Manage parallel work contexts (tags) |
 | `/task-expand <id>` | Break task into subtasks |
+| `/task-migrate-config` | Migrate v1.x JSON config to v2.0 format |
 
 ## Features
 
@@ -218,34 +220,78 @@ project/
 
 ## Configuration
 
-### Global Config (`~/.claude/task-config.json`)
+### Config File Format (v2.0)
+
+TaskFlow v2.0 uses `.local.md` files with YAML frontmatter:
+
+**Project-level:** `./.taskflow.local.md`
+**Global:** `~/.gsc-plugins/taskflow.local.md`
+
+```yaml
+---
+backend: local  # local | plane | github
+
+local:
+  path: .tasks/
+
+# For Plane backend:
+# plane:
+#   workspace: gsdev
+#   project: work
+
+# For GitHub backend:
+# github:
+#   owner: myuser
+#   repo: my-project
+
+defaults:
+  defaultPriority: medium
+  defaultTag: master
+  syncTodoWrite: true
+
+hygiene:
+  requireCompletionNotes: true
+  requireBlockerReason: true
+  promptForNotes: true
+  autoSyncToWorklog: false
+---
+
+# TaskFlow Configuration
+```
+
+### Backend Options
+
+| Backend | Description | Requirements |
+|---------|-------------|--------------|
+| `local` | Store tasks in `.tasks/` folder | None (default) |
+| `plane` | Sync with Plane issues | Plane MCP configured |
+| `github` | Sync with GitHub Issues | `gh` CLI authenticated |
+
+### Upgrading from v1.x
+
+If you have an existing `~/.claude/task-config.json`:
+
+```bash
+# Preview migration
+/task-migrate-config --dry-run
+
+# Run migration
+/task-migrate-config
+```
+
+TaskFlow v2.0 is backwards compatible - old configs still work, but you'll see a migration notice.
+
+### Legacy Config (v1.x - deprecated)
 
 ```json
 {
   "version": "1.1",
-  "environments": {
-    "hostname": {
-      "workspacePath": "/path/to/workspace",
-      "indexPath": "/path/to/.task-index.json"
-    }
-  },
-  "defaults": {
-    "checkpoints": ["parse", "execute", "complete"],
-    "syncTodoWrite": true,
-    "defaultPriority": "medium",
-    "defaultNumTasks": 10,
-    "defaultTag": "master"
-  }
+  "environments": { ... },
+  "defaults": { ... }
 }
 ```
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TASKFLOW_INDEX_PATH` | *(empty)* | Central index location |
-| `TASKFLOW_DEFAULT_TAG` | `master` | Default tag name |
-| `TASKFLOW_SYNC_TODOWRITE` | `true` | Enable TodoWrite sync |
+The `environments` section is no longer used. Use project-level `.taskflow.local.md` files instead.
 
 ## Natural Language Examples
 
@@ -297,6 +343,16 @@ taskflow/
 | Checkpoints | Human-in-the-loop | Quality over speed |
 
 ## Version History
+
+### 2.0.0
+- **Backend abstraction**: Unified interface for Local, Plane, GitHub, Linear backends
+- **New config format**: `.local.md` with YAML frontmatter (project + global scope)
+- **Auto-detection**: Automatically detects available backends (Plane MCP, GitHub CLI)
+- **Task hygiene**: Prompts for completion notes, blocker reasons, decisions, gotchas
+- **Epic support**: Complex tasks become epics with subtasks
+- **Ad-hoc tasks**: New `/task-add` command for tasks without PRDs
+- **Migration command**: `/task-migrate-config` upgrades v1.x configs
+- **Backwards compatible**: Old JSON configs still work with migration notice
 
 ### 1.1.0
 - **Issue tracker auto-detection**: Auto-detects Gitea and GitHub during `/task-init`
