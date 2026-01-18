@@ -63,10 +63,7 @@ TABLE_COLUMNS: dict[str, frozenset[str]] = {
         "status", "parent_id", "response", "created_at", "read_at", "resolved_at"
     }),
     # NOTE: sot_issues removed in INFA-614
-    "error_patterns": frozenset({
-        "id", "error_signature", "error_message", "platform", "language",
-        "root_cause", "resolution", "prevention_tip", "tags", "created_at"
-    }),
+    # NOTE: error_patterns removed in INFA-687 (unused)
     # Curation tables (INFA-291)
     "tag_taxonomy": frozenset({
         "id", "canonical_tag", "aliases", "category", "description",
@@ -95,6 +92,15 @@ TABLE_COLUMNS: dict[str, frozenset[str]] = {
     "curation_history": frozenset({
         "id", "run_at", "operation", "agent", "stats",
         "duration_seconds", "success", "error_message"
+    }),
+    # Reference library for UI assets (INFA-687)
+    # Supports both MCP schema (source_type, local_path) and extended PostgreSQL schema
+    # (client_id, competitor_id, resource_type, use_cases, etc.)
+    "reference_library": frozenset({
+        "id", "source_type", "resource_type", "title", "description", "url",
+        "local_path", "tags", "relevance_score", "quality_rating", "status",
+        "use_cases", "descriptors", "source", "captured_by",
+        "client_id", "competitor_id", "created_at", "updated_at"
     }),
 }
 
@@ -221,7 +227,7 @@ async def query_table(
     """Query any table in the worklog database with filtering and pagination.
 
     Args:
-        table: Table name (memories, knowledge_base, entries, research, agent_chat, error_patterns)
+        table: Table name (memories, knowledge_base, entries, research, agent_chat, reference_library, tag_taxonomy, etc.)
         columns: Comma-separated column names or * for all
         filter_column: Column to filter on (validated against whitelist)
         filter_op: Filter operator (=, !=, >, <, >=, <=, LIKE, ILIKE)

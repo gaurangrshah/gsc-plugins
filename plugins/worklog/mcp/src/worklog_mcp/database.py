@@ -172,18 +172,95 @@ class SQLiteBackend(DatabaseBackend):
         );
 
         -- NOTE: sot_issues removed in INFA-614
+        -- NOTE: error_patterns removed in INFA-687 (unused)
 
-        CREATE TABLE IF NOT EXISTS error_patterns (
+        -- Curation tables (INFA-687)
+        CREATE TABLE IF NOT EXISTS tag_taxonomy (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            error_signature TEXT,
-            error_message TEXT,
-            platform TEXT,
-            language TEXT,
-            root_cause TEXT,
-            resolution TEXT,
-            prevention_tip TEXT,
-            tags TEXT,
+            canonical_tag TEXT UNIQUE NOT NULL,
+            aliases TEXT,
+            category TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS relationships (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_table TEXT NOT NULL,
+            source_id INTEGER NOT NULL,
+            target_table TEXT NOT NULL,
+            target_id INTEGER NOT NULL,
+            relationship_type TEXT NOT NULL,
+            confidence REAL DEFAULT 1.0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_by TEXT,
+            UNIQUE(source_table, source_id, target_table, target_id, relationship_type)
+        );
+
+        CREATE TABLE IF NOT EXISTS topic_index (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic_name TEXT UNIQUE NOT NULL,
+            summary TEXT,
+            key_terms TEXT,
+            entry_count INTEGER DEFAULT 0,
+            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS topic_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            topic_id INTEGER REFERENCES topic_index(id) ON DELETE CASCADE,
+            entry_table TEXT NOT NULL,
+            entry_id INTEGER NOT NULL,
+            relevance_score REAL DEFAULT 1.0,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(topic_id, entry_table, entry_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS duplicate_candidates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry1_table TEXT NOT NULL,
+            entry1_id INTEGER NOT NULL,
+            entry2_table TEXT NOT NULL,
+            entry2_id INTEGER NOT NULL,
+            similarity_score REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            reviewed_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(entry1_table, entry1_id, entry2_table, entry2_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS promotion_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            memory_id INTEGER NOT NULL,
+            from_status TEXT NOT NULL,
+            to_status TEXT NOT NULL,
+            reason TEXT,
+            promoted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            promoted_by TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS curation_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operation TEXT NOT NULL,
+            agent TEXT NOT NULL,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP,
+            stats TEXT,
+            errors TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS reference_library (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            description TEXT,
+            url TEXT,
+            local_path TEXT,
+            tags TEXT,
+            relevance_score INTEGER DEFAULT 5,
+            status TEXT DEFAULT 'active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
         -- Indexes for common queries
@@ -193,6 +270,11 @@ class SQLiteBackend(DatabaseBackend):
         CREATE INDEX IF NOT EXISTS idx_entries_agent ON entries(agent);
         CREATE INDEX IF NOT EXISTS idx_kb_category ON knowledge_base(category);
         CREATE INDEX IF NOT EXISTS idx_chat_to_agent ON agent_chat(to_agent);
+        CREATE INDEX IF NOT EXISTS idx_tag_taxonomy_canonical ON tag_taxonomy(canonical_tag);
+        CREATE INDEX IF NOT EXISTS idx_relationships_source ON relationships(source_table, source_id);
+        CREATE INDEX IF NOT EXISTS idx_relationships_target ON relationships(target_table, target_id);
+        CREATE INDEX IF NOT EXISTS idx_topic_entries_topic ON topic_entries(topic_id);
+        CREATE INDEX IF NOT EXISTS idx_reference_library_type ON reference_library(source_type);
         """
         await self._conn.executescript(schema_sql)
         await self._conn.commit()

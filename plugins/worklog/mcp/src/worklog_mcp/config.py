@@ -156,10 +156,11 @@ def _get_dsn() -> str:
 
 # Tables available in the database
 # NOTE: sot_issues removed in INFA-614
+# NOTE: error_patterns removed in INFA-687 (unused)
 TABLES = ["memories", "knowledge_base", "entries", "research", "agent_chat",
           "tag_taxonomy", "relationships", "topic_index", "topic_entries",
           "duplicate_candidates", "promotion_history", "curation_history",
-          "error_patterns"]
+          "reference_library"]
 
 # Valid agent names for chat
 # Default agents - can be extended via WORKLOG_AGENTS env var (comma-separated)
