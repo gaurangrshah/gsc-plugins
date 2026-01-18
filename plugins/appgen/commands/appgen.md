@@ -97,9 +97,9 @@ Done
 - **Tech Stack Research:** Analysis of framework and library options
 - **Comprehensive Testing:** Unit, integration, and E2E test setup
 - **Authentication:** Auth.js/Clerk/Lucia integration options
-- **Database ORMs:** Prisma or Drizzle with migrations
+- **Database:** SQLite with adapter pattern (upgradeable to Postgres) - see KB 449
 - **Deployment Config:** Docker, CI/CD, environment setup
-- **Signed Work:** All commits include appgen v1.0 signature
+- **Signed Work:** All commits include appgen v1.1 signature
 - **Feature Branches:** Uses git feature branch workflow
 
 ## Bundled Agents

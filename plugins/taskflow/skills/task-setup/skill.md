@@ -304,7 +304,7 @@ def confirmSetup(backend, backend_config, scope, path):
 │  Config: {path}
 │                                                             │
 │  Tasks sync to:                                             │
-│  https://plane.internal.muhaha.dev/{backend_config['workspace']}/{backend_config['project']}
+│  https://${{PLANE_URL}}/{backend_config['workspace']}/{backend_config['project']}
 │                                                             │
 │  Get started:                                               │
 │    /task-add "Your first task"                              │

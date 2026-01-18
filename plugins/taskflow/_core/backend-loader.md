@@ -366,7 +366,7 @@ else:  # session only
 │  Saved to: ~/.gsc-plugins/taskflow.local.md (global)        │
 │                                                             │
 │  Tasks will sync to:                                        │
-│  https://plane.internal.muhaha.dev/gsdev/work               │
+│  https://plane.example.com/your-workspace/your-project      │
 │                                                             │
 │  Run /task add "your first task" to get started.            │
 │                                                             │

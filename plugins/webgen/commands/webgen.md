@@ -88,10 +88,11 @@ Done
 - **Competitive Research:** Saves competitor analysis to `research/` folder
 - **Comprehensive Documentation:** README, design decisions, asset sources
 - **Screenshot Capture:** Saves preview to docs/screenshots/preview.png
+- **Default Design System:** GSDEV Baseline 2026 with OKLch colors - see KB 451
 - **Accessibility Baseline:** WCAG 2.1 AA compliance
 - **Performance Targets:** Documents Lighthouse and bundle size goals
 - **Legal Pages:** Industry-specific privacy, terms, disclosures with disclaimers
-- **Signed Work:** All commits include webgen v1.4 signature
+- **Signed Work:** All commits include webgen v1.5 signature
 - **Feature Branches:** Uses git feature branch workflow
 - **Testing:** Automatic test setup for API/server projects
 - **Template Promotion:** Offers to save successful projects as reusable templates

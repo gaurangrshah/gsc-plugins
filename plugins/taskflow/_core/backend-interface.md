@@ -379,7 +379,7 @@ Output:
   project: "work"
   supportsEpics: true
   supportsSubtasks: true
-  externalUrl: "https://plane.internal.muhaha.dev/gsdev/work"
+  externalUrl: "https://plane.example.com/your-workspace/your-project"
 ```
 
 ---

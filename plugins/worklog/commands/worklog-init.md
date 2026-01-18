@@ -94,6 +94,9 @@ mkdir -p ~/.claude/worklog
 # Database will be auto-created by the MCP server on first use
 # Or create manually with schema:
 sqlite3 ~/.claude/worklog/worklog.db < {plugin_root}/schema/core.sql
+
+# Load seed data (tag taxonomy, topics, bootstrap knowledge)
+{plugin_root}/seed/run-seeds.sh sqlite ~/.claude/worklog/worklog.db
 ```
 
 ---
@@ -138,10 +141,17 @@ export PGPASSWORD="your-password"
 # Then run: source ~/.zshrc
 ```
 
-#### Step 5b: Test Connection
+#### Step 5b: Test Connection & Load Schema
 
 ```bash
+# Test connection
 psql -c "SELECT 1;"
+
+# Load schema (if not already created)
+psql -f {plugin_root}/schema/core.sql
+
+# Load seed data (tag taxonomy, topics, bootstrap knowledge)
+{plugin_root}/seed/run-seeds.sh postgresql
 ```
 
 ---
@@ -345,6 +355,7 @@ def importKnowledge(sources):
 DB=~/.claude/worklog/worklog.db
 [ -f "$DB" ] && echo "Database: OK" || echo "Database: MISSING"
 sqlite3 "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table';" && echo "Schema: OK"
+sqlite3 "$DB" "SELECT COUNT(*) FROM tag_taxonomy;" && echo "Seed data: OK" || echo "Seed data: MISSING"
 grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: OK" || echo "CLAUDE.md: MISSING"
 [ -f ~/.gsc-plugins/worklog.local.md ] && echo "Config: OK" || echo "Config: MISSING"
 ```
@@ -353,6 +364,7 @@ grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: OK" || echo "CLA
 ```bash
 psql -c "SELECT 1;" && echo "Connection: OK" || echo "Connection: FAILED"
 psql -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" && echo "Schema: OK"
+psql -t -c "SELECT COUNT(*) FROM tag_taxonomy;" && echo "Seed data: OK" || echo "Seed data: MISSING"
 grep -q "WORKLOG_START" ~/.claude/CLAUDE.md && echo "CLAUDE.md: OK" || echo "CLAUDE.md: MISSING"
 [ -f ~/.gsc-plugins/worklog.local.md ] && echo "Config: OK" || echo "Config: MISSING"
 ```
@@ -370,6 +382,7 @@ Changes made:
 - Created: ~/.gsc-plugins/worklog.local.md
 - Updated: ~/.claude/CLAUDE.md
 {If SQLite: - Created: ~/.claude/worklog/worklog.db}
+- Loaded seed data (tag taxonomy, topics, bootstrap knowledge)
 {If imported: - Imported {n} knowledge entries}
 
 Keep these changes? (y/n)
@@ -388,9 +401,15 @@ Profile: {profile}
 {If plugins discovered:}
 Integrates with: {detected_plugins}
 
+Seed data loaded:
+- Tag taxonomy for consistent tagging (k8s→kubernetes, pg→postgresql, etc.)
+- Core topics for knowledge organization
+- Quick start guide in knowledge base
+
 Next steps:
-- Use `memory-store` skill to save learnings
-- Use `memory-recall` skill to query context
+- Run `search_knowledge("Quick Start")` to see the getting started guide
+- Use `store_memory` to save learnings (tags auto-normalized)
+- Use `recall_context` to query relevant context
 - Run `/worklog-status` to check connectivity
 
 MCP tools available:
@@ -416,6 +435,11 @@ MCP tools available:
 - Original files are preserved
 - Check file permissions
 - Verify frontmatter format
+
+**Seed data fails:**
+- Schema must be created first
+- Run `{plugin_root}/seed/run-seeds.sh` manually
+- Check for unique constraint violations (safe to ignore - ON CONFLICT DO NOTHING)
 
 ## Rollback Command
 

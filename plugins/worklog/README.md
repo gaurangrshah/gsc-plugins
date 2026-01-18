@@ -2,7 +2,7 @@
 
 A Claude Code plugin for maintaining knowledge, context, and learnings across sessions.
 
-**Version:** 1.7.0
+**Version:** 1.7.1
 
 ## Overview
 
@@ -147,9 +147,10 @@ You'll be prompted to choose:
 The command will:
 1. Create a backup of your CLAUDE.md
 2. Initialize the database (SQLite) or connect (PostgreSQL)
-3. Add worklog section to CLAUDE.md
-4. Show verification results
-5. Ask for confirmation (rollback if declined)
+3. Load seed data (tag taxonomy, topics, quick start guide)
+4. Add worklog section to CLAUDE.md
+5. Show verification results
+6. Ask for confirmation (rollback if declined)
 
 ### 3. Start Using
 
@@ -714,6 +715,11 @@ worklog/
 ├── schema/
 │   ├── core.sql
 │   └── extended.sql
+├── seed/                    # Bootstrap data (v1.7.1+)
+│   ├── tag_taxonomy.sql     # Tag normalization rules
+│   ├── topics.sql           # Core topic index
+│   ├── knowledge.sql        # Quick start documentation
+│   └── run-seeds.sh         # Loader script (SQLite/PostgreSQL)
 ├── templates/
 │   ├── minimal.md
 │   ├── standard.md
@@ -847,6 +853,13 @@ All GSC plugins use `~/.gsc-plugins/` for configuration:
 Project-specific configs override globals via `./.{plugin}.local.md`.
 
 ## Version History
+
+### 1.7.1
+- **Seed Data**: Bootstrap data loaded during init for better onboarding
+  - Tag taxonomy for consistent tagging (k8s→kubernetes, pg→postgresql, etc.)
+  - Core topics for knowledge organization (infrastructure, development, security, etc.)
+  - Quick start guide in knowledge base
+- **Run Seeds Script**: `seed/run-seeds.sh` for both SQLite and PostgreSQL backends
 
 ### 1.7.0
 - **Unified Configuration**: Config moved to `~/.gsc-plugins/worklog.local.md`

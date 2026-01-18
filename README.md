@@ -9,7 +9,7 @@ A collection of Claude Code plugins for enhanced development workflows.
 | [appgen](plugins/appgen/) | 2.0.0 | Full-stack applications and APIs from natural language |
 | [webgen](plugins/webgen/) | 2.0.0 | Production-ready websites and landing pages from natural language |
 | [taskflow](plugins/taskflow/) | 2.0.0 | Task management with PRD parsing and multi-tag contexts |
-| [worklog](plugins/worklog/) | 1.7.0 | Cross-session knowledge persistence (SQLite/PostgreSQL) |
+| [worklog](plugins/worklog/) | 1.7.1 | Cross-session knowledge persistence (SQLite/PostgreSQL) |
 | [docs](plugins/docs/) | 1.1.0 | Documentation management and quality assurance |
 
 > **Ecosystem v2:** All plugins now use unified `.local.md` configuration at `~/.gsc-plugins/`. See [ECOSYSTEM.md](ECOSYSTEM.md) for integration details.
@@ -374,7 +374,7 @@ When plugins are installed together, they detect and offer integrations:
 │                                                                  │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  WebGen  │◄───────►│ TaskFlow │  Track generation phases    │
-│   │  v1.6.0  │ opt-in  │  v1.1.0  │  as tasks with deps         │
+│   │  v2.0.0  │ opt-in  │  v2.0.0  │  as tasks with deps         │
 │   └────┬─────┘         └────┬─────┘                             │
 │        │                    │                                    │
 │        │ (future)           │ (future)                          │
@@ -382,19 +382,19 @@ When plugins are installed together, they detect and offer integrations:
 │        ▼                    ▼                                    │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  Worklog │         │  Worklog │  Progressive disclosure +   │
-│   │  v1.6.0  │         │  v1.6.0  │  AI compression             │
+│   │  v1.7.1  │         │  v1.7.1  │  AI compression             │
 │   └──────────┘         └──────────┘                             │
 │                                                                  │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  AppGen  │◄───────►│ TaskFlow │  Track app dev phases       │
-│   │  v1.1.0  │ opt-in  │  v1.1.0  │  as tasks with deps         │
+│   │  v2.0.0  │ opt-in  │  v2.0.0  │  as tasks with deps         │
 │   └────┬─────┘         └────┬─────┘                             │
 │        │                    │                                    │
 │        │ (future)           │ (future)                          │
 │        ▼                    ▼                                    │
 │   ┌──────────┐         ┌──────────┐                             │
 │   │  Worklog │         │  Worklog │  Progressive disclosure +   │
-│   │  v1.6.0  │         │  v1.6.0  │  AI compression             │
+│   │  v1.7.1  │         │  v1.7.1  │  AI compression             │
 │   └──────────┘         └──────────┘                             │
 │                                                                  │
 │   Legend:                                                        │

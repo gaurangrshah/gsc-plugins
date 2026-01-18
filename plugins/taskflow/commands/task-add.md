@@ -189,12 +189,12 @@ Title: Implement search feature
 Priority: high (urgent in Plane)
 Status: pending
 
-Synced to: https://plane.internal.muhaha.dev/gsdev/work
+Synced to: https://plane.example.com/your-workspace/your-project
 Issue: WORK-42
 
 Next steps:
 - Start working: /task-status abc123-def456 in_progress
-- View in Plane: https://plane.internal.muhaha.dev/issue/WORK-42
+- View in Plane: https://plane.example.com/issue/WORK-42
 ```
 
 ---

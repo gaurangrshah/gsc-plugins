@@ -85,7 +85,7 @@ print(f"Total: {len(tasks)} tasks")
 
 ```
 TaskFlow Tasks (plane)
-→ https://plane.internal.muhaha.dev/gsdev/work
+→ https://plane.example.com/your-workspace/your-project
 
 In Progress (2)
 ● [HIGH] task-001: Implement user authentication

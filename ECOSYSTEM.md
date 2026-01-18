@@ -159,7 +159,7 @@ Documentation management and validation.
 
 ---
 
-### Worklog (v1.7)
+### Worklog (v1.7.1)
 
 Cross-session knowledge persistence.
 
@@ -173,6 +173,7 @@ Cross-session knowledge persistence.
 - MCP server for programmatic access
 - SessionStart/Stop hooks
 - Plugin discovery and knowledge import
+- Seed data for quick onboarding (tag taxonomy, topics, quick start guide)
 
 **Storage:**
 - SQLite: `~/.claude/worklog/worklog.db`
@@ -334,7 +335,7 @@ system_name: my-system
 | webgen | 2.0 | .local.md | v2 |
 | taskflow | 2.0 | .local.md | v2 |
 | docs | 1.1 | .local.md | v2 |
-| worklog | 1.7 | .local.md | v2 |
+| worklog | 1.7.1 | .local.md | v2 |
 
 All v2 ecosystem plugins use:
 - `~/.gsc-plugins/` for configuration

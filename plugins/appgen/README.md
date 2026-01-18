@@ -2,7 +2,7 @@
 
 Generate full-stack applications and APIs from natural language descriptions using Claude's capabilities directly through your Max subscription.
 
-**Version:** 1.1.0 (Git Worktree Support)
+**Version:** 2.0.0
 
 ## Overview
 

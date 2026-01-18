@@ -459,7 +459,7 @@ def getBackendInfo():
         "module": config.plane.get("module"),
         "supportsEpics": True,
         "supportsSubtasks": True,
-        "externalUrl": f"https://plane.internal.muhaha.dev/{config.plane.workspace}/{config.plane.project}"
+        "externalUrl": f"https://${{PLANE_URL}}/{config.plane.workspace}/{config.plane.project}"
     }
 ```
 
@@ -500,7 +500,7 @@ def planeToTask(issue):
         "updatedAt": issue.get("updated_at", ""),
         "createdBy": issue.get("created_by"),
         "externalId": issue.get("sequence_id"),  # e.g., "WORK-123"
-        "externalUrl": f"https://plane.internal.muhaha.dev/issue/{issue['id']}"
+        "externalUrl": f"https://${{PLANE_URL}}/issue/{issue['id']}"
     }
 ```
 

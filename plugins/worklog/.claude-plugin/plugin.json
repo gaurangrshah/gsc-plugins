@@ -1,6 +1,6 @@
 {
   "name": "worklog",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Cross-session knowledge persistence with SQLite (default) or PostgreSQL. Store learnings, recall context, and maintain continuity across Claude Code sessions. Part of the unified GSC plugins ecosystem with plugin discovery and knowledge import.",
   "author": {
     "name": "gs"
